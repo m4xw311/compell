@@ -25,7 +25,7 @@ func (m *MockLLMClient) Chat(ctx context.Context, messages []session.Message, av
 	}
 	fmt.Printf("Available tools: %v\n", toolNames)
 	fmt.Println("Returning a mock response.")
-	fmt.Println("-----------------------\n")
+	fmt.Println("-----------------------")
 
 	// This mock will just parrot back the user's last message.
 	// A real implementation would make an API call here.

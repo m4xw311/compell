@@ -36,7 +36,7 @@ func NewGeminiLLMClient(ctx context.Context, modelName string) (*GeminiLLMClient
 	}, nil
 }
 
-// Chat sends a chat request to the Gemini API.
+// Chat sends a chat rexquest to the Gemini API.
 func (g *GeminiLLMClient) Chat(ctx context.Context, messages []session.Message, availableTools []tools.Tool) (*session.Message, error) {
 	// Convert session messages to Gemini's content format.
 	history := convertMessagesToGeminiContent(messages)
@@ -57,7 +57,7 @@ func (g *GeminiLLMClient) Chat(ctx context.Context, messages []session.Message, 
 	}
 
 	// Process the response from Gemini.
-	return processGeminiResponse(resp)
+	return processGeminiResponse(ctx, resp, availableTools)
 }
 
 // convertMessagesToGeminiContent converts our internal message format to Gemini's.
@@ -111,7 +111,7 @@ func convertToolsToGeminiTools(ts []tools.Tool) []*genai.Tool {
 }
 
 // processGeminiResponse converts a Gemini API response into our internal session.Message format.
-func processGeminiResponse(resp *genai.GenerateContentResponse) (*session.Message, error) {
+func processGeminiResponse(ctx context.Context, resp *genai.GenerateContentResponse, availableTools []tools.Tool) (*session.Message, error) {
 	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
 		return nil, fmt.Errorf("received an empty response from Gemini")
 	}
@@ -124,10 +124,42 @@ func processGeminiResponse(resp *genai.GenerateContentResponse) (*session.Messag
 		case genai.Text:
 			responseContent += string(v)
 		case genai.FunctionCall:
-			// TODO: Fully implement tool call handling.
-			// This requires extending session.Message to support structured tool calls.
-			// For now, we return a textual representation.
-			responseContent += fmt.Sprintf("Tool call requested: %s with args %v", v.Name, v.Args)
+			// Find the tool that the model wants to call.
+			var calledTool tools.Tool
+			for _, tool := range availableTools {
+				if tool.Name() == v.Name {
+					calledTool = tool
+					break
+				}
+			}
+
+			// If the tool is not found, report an error back to the model. This should
+			// not happen if the model is behaving correctly.
+			if calledTool == nil {
+				responseContent += fmt.Sprintf("Error: model requested to call unavailable tool '%s'", v.Name)
+				continue
+			}
+
+			// Extract the arguments. As defined in `convertToolsToGeminiTools`,
+			// the arguments are nested under an "args" key.
+			toolArgs, ok := v.Args["args"].(map[string]interface{})
+			if !ok {
+				responseContent += fmt.Sprintf("Error: invalid arguments for tool '%s', expected a map under 'args' key", v.Name)
+				continue
+			}
+
+			// Execute the tool.
+			result, err := calledTool.Execute(ctx, toolArgs)
+			if err != nil {
+				// Report tool execution error back to the model.
+				responseContent += fmt.Sprintf("Error executing tool '%s': %v", v.Name, err)
+				continue
+			}
+
+			// Append the tool's result to the response content.
+			// A more complete implementation might add a new message with role "tool"
+			// to the session history, but for now this lets the model see the result.
+			responseContent += result
 		default:
 			return nil, fmt.Errorf("unsupported part type in Gemini response: %T", v)
 		}
