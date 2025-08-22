@@ -64,16 +64,53 @@ func (g *GeminiLLMClient) Chat(ctx context.Context, messages []session.Message, 
 func convertMessagesToGeminiContent(messages []session.Message) []*genai.Content {
 	var contents []*genai.Content
 	for _, msg := range messages {
-		role := "user" // Default to user
-		if msg.Role == "assistant" {
+		role := "user" // Default role
+		var parts []genai.Part
+
+		switch msg.Role {
+		case "assistant":
 			role = "model"
+			if msg.Content != "" {
+				parts = append(parts, genai.Text(msg.Content))
+			}
+			for _, tc := range msg.ToolCalls {
+				parts = append(parts, genai.FunctionCall{
+					Name: tc.Name,
+					// The arguments from the model are nested under an "args" key,
+					// so we replicate that structure when adding to history.
+					Args: map[string]interface{}{"args": tc.Args},
+				})
+			}
+		case "tool":
+			role = "user" // Tool responses are sent with the 'user' role to Gemini.
+			// This assumes the agent creates a "tool" message where Content is the
+			// result and ToolCalls[0].Name is the name of the tool that was called.
+			if len(msg.ToolCalls) != 1 {
+				fmt.Printf("Warning: tool message is malformed; expected exactly one ToolCall to identify the function name, but found %d. Skipping.\n", len(msg.ToolCalls))
+				continue // Skip this malformed message
+			}
+			toolName := msg.ToolCalls[0].Name
+			parts = append(parts, genai.FunctionResponse{
+				Name: toolName,
+				// The response needs to be a JSON-serializable map or struct.
+				// We wrap the raw string output in a map.
+				Response: map[string]interface{}{"output": msg.Content},
+			})
+		case "user":
+			fallthrough
+		default:
+			role = "user"
+			if msg.Content != "" {
+				parts = append(parts, genai.Text(msg.Content))
+			}
 		}
-		// Note: The "tool" role needs special handling if we were to process tool responses,
-		// which would typically be appended as a genai.Part in a new user message.
-		contents = append(contents, &genai.Content{
-			Role:  role,
-			Parts: []genai.Part{genai.Text(msg.Content)},
-		})
+
+		if len(parts) > 0 {
+			contents = append(contents, &genai.Content{
+				Role:  role,
+				Parts: parts,
+			})
+		}
 	}
 	return contents
 }
@@ -113,60 +150,49 @@ func convertToolsToGeminiTools(ts []tools.Tool) []*genai.Tool {
 // processGeminiResponse converts a Gemini API response into our internal session.Message format.
 func processGeminiResponse(ctx context.Context, resp *genai.GenerateContentResponse, availableTools []tools.Tool) (*session.Message, error) {
 	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
-		return nil, errors.New("received an empty response from Gemini")
+		// It's possible the model just returned a finish reason like "STOP"
+		// with no content. We can check FinishReason and handle if needed.
+		// For now, returning an empty message is safe, the agent loop will handle it.
+		return &session.Message{Role: "assistant", Content: ""}, nil
 	}
 
 	content := resp.Candidates[0].Content
 	var responseContent string
+	var toolCalls []session.ToolCall
+	toolCallIDCounter := 0
 
 	for _, part := range content.Parts {
 		switch v := part.(type) {
 		case genai.Text:
 			responseContent += string(v)
 		case genai.FunctionCall:
-			// Find the tool that the model wants to call.
-			var calledTool tools.Tool
-			for _, tool := range availableTools {
-				if tool.Name() == v.Name {
-					calledTool = tool
-					break
-				}
-			}
-
-			// If the tool is not found, report an error back to the model. This should
-			// not happen if the model is behaving correctly.
-			if calledTool == nil {
-				responseContent += fmt.Sprintf("Error: model requested to call unavailable tool '%s'", v.Name)
-				continue
-			}
-
-			// Extract the arguments. As defined in `convertToolsToGeminiTools`,
-			// the arguments are nested under an "args" key.
+			// The model has requested to call a tool.
+			// We package this into our internal ToolCall struct and pass it to the agent.
 			toolArgs, ok := v.Args["args"].(map[string]interface{})
 			if !ok {
-				responseContent += fmt.Sprintf("Error: invalid arguments for tool '%s', expected a map under 'args' key", v.Name)
+				// This indicates a malformed request from the LLM based on our tool definition.
+				// For now, we'll log this and continue, but a more robust
+				// error handling strategy might be to return an error to the agent.
+				fmt.Printf("Warning: invalid arguments for tool '%s', expected a map under 'args' key\n", v.Name)
 				continue
 			}
 
-			// Execute the tool.
-			result, err := calledTool.Execute(ctx, toolArgs)
-			if err != nil {
-				// Report tool execution error back to the model.
-				responseContent += fmt.Sprintf("Error executing tool '%s': %v", v.Name, err)
-				continue
+			// We need to generate a unique ID for each tool call to track the response.
+			toolCall := session.ToolCall{
+				ToolCallID: fmt.Sprintf("call_%d_%s", toolCallIDCounter, v.Name),
+				Name:       v.Name,
+				Args:       toolArgs,
 			}
-
-			// Append the tool's result to the response content.
-			// A more complete implementation might add a new message with role "tool"
-			// to the session history, but for now this lets the model see the result.
-			responseContent += result
+			toolCalls = append(toolCalls, toolCall)
+			toolCallIDCounter++
 		default:
 			return nil, errors.New("unsupported part type in Gemini response: %T", v)
 		}
 	}
 
 	return &session.Message{
-		Role:    "assistant",
-		Content: responseContent,
+		Role:      "assistant",
+		Content:   responseContent,
+		ToolCalls: toolCalls,
 	}, nil
 }

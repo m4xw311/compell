@@ -21,6 +21,7 @@ func main() {
 	sessionFlag := flag.String("s", "", "Session name to create or use")
 	toolsetFlag := flag.String("t", "", "Toolset to use (defaults to 'default')")
 	resumeFlag := flag.String("r", "", "Resume a session by name")
+	toolVerbosityFlag := flag.String("tool-verbosity", "none", "Tool verbosity level: 'none', 'info', or 'all'")
 
 	flag.Parse()
 
@@ -77,12 +78,27 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error initializing Gemini client: %+v\n", err)
 			os.Exit(1)
 		}
+
 	default:
 		client = &llm.MockLLMClient{}
 	}
 
+	// Validate tool verbosity
+	var verbosity agent.ToolVerbosity
+	switch *toolVerbosityFlag {
+	case "none":
+		verbosity = agent.ToolVerbosityNone
+	case "info":
+		verbosity = agent.ToolVerbosityInfo
+	case "all":
+		verbosity = agent.ToolVerbosityAll
+	default:
+		fmt.Fprintf(os.Stderr, "Invalid tool verbosity '%s'. Must be 'none', 'info', or 'all'.\n", *toolVerbosityFlag)
+		os.Exit(1)
+	}
+
 	// Create the agent
-	compellAgent, err := agent.New(cfg, sess, *toolsetFlag, opMode, client)
+	compellAgent, err := agent.New(cfg, sess, *toolsetFlag, opMode, client, verbosity)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing agent: %+v\n", err)
 		os.Exit(1)

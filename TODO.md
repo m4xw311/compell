@@ -4,12 +4,12 @@ This document outlines the features and improvements planned for Compell, based 
 
 ## 🚀 High Priority Features
 
-1.  [ ] **Implement Full Tool Call Execution Loop:** The core agent loop in `agent/agent.go` currently doesn't execute tool calls from the LLM. This is the most critical missing piece.
-    1.1. [ ] In `agent/agent.go`, parse the `ToolCalls` from the LLM response.
-    1.2. [ ] Implement logic to execute the requested tool with the provided arguments.
-    1.3. [ ] Add support for `prompt` mode to ask for user confirmation before executing a tool call. `auto` mode should execute without prompting.
-    1.4. [ ] Send the tool's output back to the LLM in a new message with `role: "tool"`, as noted in `llm/gemini.go`.
-    1.5. [ ] Un-comment and implement the `ToolCalls` field in the `session.Message` struct in `session/session.go` to properly save and resume sessions with tool interactions.
+1.  [x] **Implement Full Tool Call Execution Loop:** The core agent loop in `agent/agent.go` currently doesn't execute tool calls from the LLM. This is the most critical missing piece.
+    1.1. [x] In `agent/agent.go`, parse the `ToolCalls` from the LLM response.
+    1.2. [x] Implement logic to execute the requested tool with the provided arguments.
+    1.3. [x] Add support for `prompt` mode to ask for user confirmation before executing a tool call. `auto` mode should execute without prompting.
+    1.4. [x] Send the tool's output back to the LLM in a new message with `role: "tool"`, as noted in `llm/gemini.go`.
+    1.5. [x] Un-comment and implement the `ToolCalls` field in the `session.Message` struct in `session/session.go` to properly save and resume sessions with tool interactions.
 
 ## 🛠️ Tool Implementation
 

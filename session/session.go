@@ -9,11 +9,17 @@ import (
 	"github.com/m4xw311/compell/errors"
 )
 
+// ToolCall represents a function call requested by the model.
+type ToolCall struct {
+	ToolCallID string                 `json:"tool_call_id"`
+	Name       string                 `json:"name"`
+	Args       map[string]interface{} `json:"args"`
+}
+
 type Message struct {
-	Role    string `json:"role"` // "user", "assistant", "tool"
-	Content string `json:"content"`
-	// For future tool call implementation
-	// ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	Role      string     `json:"role"` // "user", "assistant", "tool"
+	Content   string     `json:"content"`
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 }
 
 type Session struct {

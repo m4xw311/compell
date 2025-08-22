@@ -21,15 +21,25 @@ const (
 	ModePrompt Mode = "prompt"
 )
 
+// ToolVerbosity defines the level of detail for tool execution logging.
+type ToolVerbosity string
+
+const (
+	ToolVerbosityNone ToolVerbosity = "none"
+	ToolVerbosityInfo ToolVerbosity = "info"
+	ToolVerbosityAll  ToolVerbosity = "all"
+)
+
 type Agent struct {
 	Config         *config.Config
 	Session        *session.Session
 	LLMClient      llm.LLMClient
 	AvailableTools []tools.Tool
 	Mode           Mode
+	Verbosity      ToolVerbosity
 }
 
-func New(cfg *config.Config, sess *session.Session, toolset string, mode Mode, client llm.LLMClient) (*Agent, error) {
+func New(cfg *config.Config, sess *session.Session, toolset string, mode Mode, client llm.LLMClient, verbosity ToolVerbosity) (*Agent, error) {
 	ts, err := cfg.GetToolset(toolset)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get toolset")
@@ -47,6 +57,7 @@ func New(cfg *config.Config, sess *session.Session, toolset string, mode Mode, c
 		LLMClient:      client,
 		AvailableTools: activeTools,
 		Mode:           mode,
+		Verbosity:      verbosity,
 	}, nil
 }
 
@@ -89,25 +100,92 @@ func (a *Agent) processTurn(ctx context.Context, userInput string) error {
 			return errors.Wrapf(err, "LLM chat failed")
 		}
 
-		// A real implementation would check for `assistantResponse.ToolCalls`
-		// and execute them here, possibly prompting the user if in `prompt` mode.
-		// For this example, we assume the LLM just returns text.
-
 		a.Session.AddMessage(*assistantResponse)
-		fmt.Printf("Compell: %s\n", assistantResponse.Content)
 
-		// Save session after each turn
-		if err := a.Session.Save(); err != nil {
-			fmt.Printf("Warning: failed to save session: %v\n", err)
+		// If the assistant provided a direct textual response, print it.
+		if assistantResponse.Content != "" {
+			fmt.Printf("Compell: %s\n", assistantResponse.Content)
 		}
 
 		// Break the loop if the LLM provided a final answer (no tool calls)
-		// if len(assistantResponse.ToolCalls) == 0 {
-		break
-		// }
+		if len(assistantResponse.ToolCalls) == 0 {
+			// Save session after a complete turn
+			if err := a.Session.Save(); err != nil {
+				fmt.Printf("Warning: failed to save session: %v\n", err)
+			}
+			break
+		}
 
-		// ... tool execution logic would go here ...
+		// --- Tool Execution Phase ---
+
+		var toolResultMessages []session.Message
+
+		for _, toolCall := range assistantResponse.ToolCalls {
+			toolResult, err := a.executeToolCall(ctx, toolCall)
+			if err != nil {
+				// If there was an error during tool execution (e.g., tool not found),
+				// format it as a message to be sent back to the LLM.
+				toolResult = fmt.Sprintf("Error executing tool %s: %v", toolCall.Name, err)
+			}
+
+			if a.Verbosity == ToolVerbosityAll {
+				fmt.Printf("Tool `%s` output: %s\n", toolCall.Name, toolResult)
+			}
+
+			// Create a message with the tool's output.
+			toolMsg := session.Message{
+				Role: "tool",
+				// The content is the raw output from the tool.
+				Content: toolResult,
+				// We associate this result with the original call.
+				ToolCalls: []session.ToolCall{{ToolCallID: toolCall.ToolCallID, Name: toolCall.Name}},
+			}
+			toolResultMessages = append(toolResultMessages, toolMsg)
+		}
+
+		// Add all tool result messages to the session history at once.
+		for _, msg := range toolResultMessages {
+			a.Session.AddMessage(msg)
+		}
+		// Continue the loop to send the tool results back to the LLM.
 	}
 
 	return nil
+}
+
+func (a *Agent) executeToolCall(ctx context.Context, toolCall session.ToolCall) (string, error) {
+	var targetTool tools.Tool
+	for _, t := range a.AvailableTools {
+		if t.Name() == toolCall.Name {
+			targetTool = t
+			break
+		}
+	}
+
+	if targetTool == nil {
+		return "", errors.New("tool '%s' not found in the available toolset", toolCall.Name)
+	}
+
+	// In prompt mode, ask for user confirmation.
+	if a.Verbosity == ToolVerbosityAll {
+		fmt.Printf("Compell wants to call tool `%s` with args: %v\n", toolCall.Name, toolCall.Args)
+	} else if a.Verbosity == ToolVerbosityInfo {
+		fmt.Printf("Compell wants to call tool `%s`\n", toolCall.Name)
+	}
+
+	// In prompt mode, ask for user confirmation.
+	if a.Mode == ModePrompt {
+		fmt.Print("Do you want to allow this? (y/n): ")
+		reader := bufio.NewReader(os.Stdin)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to read user confirmation")
+		}
+		if strings.TrimSpace(strings.ToLower(answer)) != "y" {
+			return "User denied tool execution.", nil
+		}
+	}
+
+	// Execute the tool.
+	return targetTool.Execute(ctx, toolCall.Args)
 }
