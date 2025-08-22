@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/m4xw311/compell/errors"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -94,7 +95,8 @@ type MCPTool struct {
 // Name returns the fully qualified name of the tool in the format "<server>:<tool>".
 func (t *MCPTool) Name() string {
 	// Using %s:%s was causing 400 error from Gemini so using %s.%s
-	return fmt.Sprintf("%s.%s", t.serverName, t.toolName)
+	//return fmt.Sprintf("%s.%s", t.serverName, t.toolName)
+	return t.toolName
 }
 
 // Description returns the tool's description, provided by the MCP server.
@@ -111,5 +113,9 @@ func (t *MCPTool) Execute(ctx context.Context, args map[string]interface{}) (str
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to call tool '%s'", t.Name())
 	}
-	return fmt.Sprintf("%v", result.StructuredContent), nil
+	op := ""
+	for _, c := range result.Content {
+		op += c.(*mcp.TextContent).Text
+	}
+	return op, nil
 }
