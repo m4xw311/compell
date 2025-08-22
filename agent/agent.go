@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/m4xw311/compell/config"
+	"github.com/m4xw311/compell/errors"
 	"github.com/m4xw311/compell/llm"
 	"github.com/m4xw311/compell/session"
 	"github.com/m4xw311/compell/tools"
@@ -31,13 +32,13 @@ type Agent struct {
 func New(cfg *config.Config, sess *session.Session, toolset string, mode Mode, client llm.LLMClient) (*Agent, error) {
 	ts, err := cfg.GetToolset(toolset)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to get toolset")
 	}
 
 	registry := tools.NewToolRegistry(cfg)
 	activeTools, err := registry.GetActiveTools(ts)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to get active tools")
 	}
 
 	return &Agent{
@@ -63,7 +64,7 @@ func (a *Agent) Run(ctx context.Context, initialPrompt string) error {
 		fmt.Print("You: ")
 		userInput, err := reader.ReadString('\n')
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to read user input")
 		}
 		userInput = strings.TrimSpace(userInput)
 		if userInput == "" {
@@ -85,7 +86,7 @@ func (a *Agent) processTurn(ctx context.Context, userInput string) error {
 	for {
 		assistantResponse, err := a.LLMClient.Chat(ctx, a.Session.Messages, a.AvailableTools)
 		if err != nil {
-			return fmt.Errorf("LLM chat failed: %w", err)
+			return errors.Wrapf(err, "LLM chat failed")
 		}
 
 		// A real implementation would check for `assistantResponse.ToolCalls`

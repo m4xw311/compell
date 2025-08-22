@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/m4xw311/compell/errors"
 )
 
 type Message struct {
@@ -41,12 +43,12 @@ func Load(name string) (*Session, error) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("could not read session file %s: %w", path, err)
+		return nil, errors.Wrapf(err, "could not read session file %s", path)
 	}
 
 	var s Session
 	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("could not parse session file %s: %w", path, err)
+		return nil, errors.Wrapf(err, "could not parse session file %s", path)
 	}
 	s.path = path
 	return &s, nil
@@ -56,7 +58,7 @@ func Load(name string) (*Session, error) {
 func (s *Session) Save() error {
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to serialize session: %w", err)
+		return errors.Wrapf(err, "failed to serialize session")
 	}
 	return os.WriteFile(s.path, data, 0644)
 }
@@ -69,7 +71,7 @@ func (s *Session) AddMessage(msg Message) {
 func getSessionPath(name string) (string, error) {
 	sessionDir := filepath.Join(".compell", "sessions")
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		return "", fmt.Errorf("could not create session directory: %w", err)
+		return "", errors.Wrapf(err, "could not create session directory")
 	}
 	return filepath.Join(sessionDir, fmt.Sprintf("%s.json", name)), nil
 }

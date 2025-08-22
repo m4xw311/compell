@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/m4xw311/compell/config"
+	"github.com/m4xw311/compell/errors"
 )
 
 // ReadFileTool implements the tool for reading a file.
@@ -21,7 +22,7 @@ func (t *ReadFileTool) Description() string {
 func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	path, ok := args["path"].(string)
 	if !ok {
-		return "", fmt.Errorf("missing or invalid 'path' argument")
+		return "", errors.New("missing or invalid 'path' argument")
 	}
 
 	hidden, err := isPathRestricted(path, t.fsAccess.Hidden)
@@ -29,12 +30,12 @@ func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{})
 		return "", err
 	}
 	if hidden {
-		return "", fmt.Errorf("access denied: path '%s' is hidden", path)
+		return "", errors.New("access denied: path '%s' is hidden", path)
 	}
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file '%s': %w", path, err)
+		return "", errors.Wrapf(err, "failed to read file '%s'", path)
 	}
 	return string(content), nil
 }
@@ -53,7 +54,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 	path, pathOk := args["path"].(string)
 	content, contentOk := args["content"].(string)
 	if !pathOk || !contentOk {
-		return "", fmt.Errorf("missing or invalid 'path' or 'content' arguments")
+		return "", errors.New("missing or invalid 'path' or 'content' arguments")
 	}
 
 	hidden, err := isPathRestricted(path, t.fsAccess.Hidden)
@@ -61,7 +62,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 		return "", err
 	}
 	if hidden {
-		return "", fmt.Errorf("access denied: path '%s' is hidden", path)
+		return "", errors.New("access denied: path '%s' is hidden", path)
 	}
 
 	readOnly, err := isPathRestricted(path, t.fsAccess.ReadOnly)
@@ -69,12 +70,12 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 		return "", err
 	}
 	if readOnly {
-		return "", fmt.Errorf("access denied: path '%s' is read-only", path)
+		return "", errors.New("access denied: path '%s' is read-only", path)
 	}
 
 	err = os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		return "", fmt.Errorf("failed to write to file '%s': %w", path, err)
+		return "", errors.Wrapf(err, "failed to write to file '%s'", path)
 	}
 	return fmt.Sprintf("Successfully wrote %d bytes to %s", len(content), path), nil
 }

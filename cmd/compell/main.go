@@ -27,7 +27,7 @@ func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error loading configuration: %+v\n", err)
 		os.Exit(1)
 	}
 
@@ -39,7 +39,7 @@ func main() {
 		sessionName = *resumeFlag
 		sess, err = session.Load(sessionName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error resuming session '%s': %v\n", sessionName, err)
+			fmt.Fprintf(os.Stderr, "Error resuming session '%s': %+v\n", sessionName, err)
 			os.Exit(1)
 		}
 		fmt.Printf("Resuming session: %s\n", sessionName)
@@ -50,7 +50,7 @@ func main() {
 		}
 		sess, err = session.New(sessionName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating session '%s': %v\n", sessionName, err)
+			fmt.Fprintf(os.Stderr, "Error creating session '%s': %+v\n", sessionName, err)
 			os.Exit(1)
 		}
 		fmt.Printf("Starting new session: %s\n", sessionName)
@@ -74,7 +74,7 @@ func main() {
 	case "gemini":
 		client, err = llm.NewGeminiLLMClient(context.Background(), cfg.Model)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing Gemini client: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error initializing Gemini client: %+v\n", err)
 			os.Exit(1)
 		}
 	default:
@@ -84,7 +84,7 @@ func main() {
 	// Create the agent
 	compellAgent, err := agent.New(cfg, sess, *toolsetFlag, opMode, client)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing agent: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error initializing agent: %+v\n", err)
 		os.Exit(1)
 	}
 
@@ -94,7 +94,7 @@ func main() {
 	// Run the agent
 	fmt.Println("Compell is ready. Type your prompt.")
 	if err := compellAgent.Run(context.Background(), initialPrompt); err != nil {
-		fmt.Fprintf(os.Stderr, "Agent stopped with an error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Agent stopped with an error: %+v\n", err)
 		os.Exit(1)
 	}
 }

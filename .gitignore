@@ -1,3 +1,5 @@
 localtest/
 .compell/sessions/
 bin/
+google-pse-mcp/
+test.db

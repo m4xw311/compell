@@ -10,18 +10,28 @@ toolsets:
       - read_file
       - write_file
       - execute_command
-      # - google-pse-mcp:search # Example for a not-yet-implemented MCP tool
+      - mcp-sqlite.list_tables
+      - mcp-sqlite.query
+      # - google-pse-mcp.search # Example for a not-yet-implemented MCP tool
 
 # List of additional servers (e.g., for external tools like web search)
 additional_mcp_servers:
-  - name: google-pse-mcp
+  # - name: google-pse-mcp
+  #   command: npx
+  #   args:
+  #     - -y
+  #     - google-pse-mcp
+  #     - https://www.googleapis.com/customsearch
+  #     - <api_key>
+  #     - <cx>
+  # Test with inspector:
+  # npx -y @modelcontextprotocol/inspector npx -y mcp-sqlite test.db
+  - name: mcp-sqlite
     command: npx
     args:
       - -y
-      - google-pse-mcp
-      - https://www.googleapis.com/customsearch
-      - <api_key>
-      - <cx>
+      - mcp-sqlite
+      - test.db
 
 # Allowed OS commands
 allowed_commands:

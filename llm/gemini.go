@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/google/generative-ai-go/genai"
+	"github.com/m4xw311/compell/errors"
 	"github.com/m4xw311/compell/session"
 	"github.com/m4xw311/compell/tools"
 	"google.golang.org/api/option"
@@ -21,12 +22,12 @@ type GeminiLLMClient struct {
 func NewGeminiLLMClient(ctx context.Context, modelName string) (*GeminiLLMClient, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
-		return nil, fmt.Errorf("GEMINI_API_KEY environment variable not set")
+		return nil, errors.New("GEMINI_API_KEY environment variable not set")
 	}
 
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create genai client: %w", err)
+		return nil, errors.Wrapf(err, "failed to create genai client")
 	}
 
 	model := client.GenerativeModel(modelName)
@@ -50,10 +51,9 @@ func (g *GeminiLLMClient) Chat(ctx context.Context, messages []session.Message, 
 
 	chatSession := g.model.StartChat()
 	chatSession.History = history[:len(history)-1]
-
 	resp, err := chatSession.SendMessage(ctx, lastMessage.Parts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send message to Gemini: %w", err)
+		return nil, errors.Wrapf(err, "failed to send message to Gemini")
 	}
 
 	// Process the response from Gemini.
@@ -113,7 +113,7 @@ func convertToolsToGeminiTools(ts []tools.Tool) []*genai.Tool {
 // processGeminiResponse converts a Gemini API response into our internal session.Message format.
 func processGeminiResponse(ctx context.Context, resp *genai.GenerateContentResponse, availableTools []tools.Tool) (*session.Message, error) {
 	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
-		return nil, fmt.Errorf("received an empty response from Gemini")
+		return nil, errors.New("received an empty response from Gemini")
 	}
 
 	content := resp.Candidates[0].Content
@@ -161,7 +161,7 @@ func processGeminiResponse(ctx context.Context, resp *genai.GenerateContentRespo
 			// to the session history, but for now this lets the model see the result.
 			responseContent += result
 		default:
-			return nil, fmt.Errorf("unsupported part type in Gemini response: %T", v)
+			return nil, errors.New("unsupported part type in Gemini response: %T", v)
 		}
 	}
 

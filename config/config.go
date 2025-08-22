@@ -1,10 +1,10 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/m4xw311/compell/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,12 +25,12 @@ type Toolset struct {
 }
 
 type Config struct {
-	LLMClient           string           `yaml:"llm"`
-	Model               string           `yaml:"model"`
-	Toolsets            []Toolset        `yaml:"toolsets"`
+	LLMClient            string           `yaml:"llm"`
+	Model                string           `yaml:"model"`
+	Toolsets             []Toolset        `yaml:"toolsets"`
 	AdditionalMCPServers []MCPServer      `yaml:"additional_mcp_servers"`
-	AllowedCommands     []string         `yaml:"allowed_commands"`
-	FilesystemAccess    FilesystemAccess `yaml:"filesystem_access"`
+	AllowedCommands      []string         `yaml:"allowed_commands"`
+	FilesystemAccess     FilesystemAccess `yaml:"filesystem_access"`
 }
 
 // LoadConfig loads configuration from the user's home directory and the current
@@ -47,7 +47,7 @@ func LoadConfig() (*Config, error) {
 		userConfigPath := filepath.Join(home, ".compell", "config.yaml")
 		if _, err := os.Stat(userConfigPath); err == nil {
 			if err := loadFromFile(userConfigPath, cfg); err != nil {
-				return nil, fmt.Errorf("error loading user config: %w", err)
+				return nil, errors.Wrapf(err, "error loading user config")
 			}
 		}
 	}
@@ -55,12 +55,12 @@ func LoadConfig() (*Config, error) {
 	// Load project-level config, overriding user-level
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("could not get working directory: %w", err)
+		return nil, errors.Wrapf(err, "could not get working directory")
 	}
 	projectConfigPath := filepath.Join(wd, ".compell", "config.yaml")
 	if _, err := os.Stat(projectConfigPath); err == nil {
 		if err := loadFromFile(projectConfigPath, cfg); err != nil {
-			return nil, fmt.Errorf("error loading project config: %w", err)
+			return nil, errors.Wrapf(err, "error loading project config")
 		}
 	}
 
@@ -90,7 +90,7 @@ func (c *Config) GetToolset(name string) (*Toolset, error) {
 		}
 	}
 	if name == "default" {
-		return nil, fmt.Errorf("mandatory 'default' toolset not found in configuration")
+		return nil, errors.New("mandatory 'default' toolset not found in configuration")
 	}
 	// Fallback to default if a specific toolset was requested but not found
 	return c.GetToolset("default")

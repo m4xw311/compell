@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/m4xw311/compell/errors"
 )
 
 // ExecuteCommandTool implements the tool for running OS commands.
@@ -20,7 +22,7 @@ func (t *ExecuteCommandTool) Description() string {
 func (t *ExecuteCommandTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	command, ok := args["command"].(string)
 	if !ok {
-		return "", fmt.Errorf("missing or invalid 'command' argument")
+		return "", errors.New("missing or invalid 'command' argument")
 	}
 
 	allowed, err := isCommandAllowed(command, t.allowedCommands)
@@ -28,7 +30,7 @@ func (t *ExecuteCommandTool) Execute(ctx context.Context, args map[string]interf
 		return "", err
 	}
 	if !allowed {
-		return "", fmt.Errorf("command '%s' is not in the list of allowed commands", command)
+		return "", errors.New("command '%s' is not in the list of allowed commands", command)
 	}
 
 	// Basic shell-like execution
@@ -37,7 +39,7 @@ func (t *ExecuteCommandTool) Execute(ctx context.Context, args map[string]interf
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("command execution failed: %w. Output:\n%s", err, string(output))
+		return "", errors.Wrapf(err, "command execution failed. Output:\n%s", string(output))
 	}
 
 	return fmt.Sprintf("Command executed successfully. Output:\n%s", string(output)), nil
