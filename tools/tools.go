@@ -34,8 +34,11 @@ func NewToolRegistry(cfg *config.Config) *ToolRegistry {
 	// Register default tools
 	r.Register(&ReadFileTool{fsAccess: &cfg.FilesystemAccess})
 	r.Register(&WriteFileTool{fsAccess: &cfg.FilesystemAccess})
+	r.Register(&CreateDirTool{fsAccess: &cfg.FilesystemAccess})
+	r.Register(&DeleteFileTool{fsAccess: &cfg.FilesystemAccess})
+	r.Register(&DeleteDirTool{fsAccess: &cfg.FilesystemAccess})
 	r.Register(&ExecuteCommandTool{allowedCommands: cfg.AllowedCommands})
-	// Add other tools like CreateDir, DeleteFile, ReadRepo here...
+	// Add other tools like ReadRepo here...
 
 	// Initialize MCP clients and register their tools
 	for _, mcpServer := range cfg.AdditionalMCPServers {

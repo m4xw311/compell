@@ -7,7 +7,6 @@ import (
 	"os/exec"
 
 	"github.com/m4xw311/compell/errors"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -115,7 +114,7 @@ func (t *MCPTool) Execute(ctx context.Context, args map[string]interface{}) (str
 	}
 	op := ""
 	for _, c := range result.Content {
-		op += c.(*mcp.TextContent).Text
+		op += c.(*mcpsdk.TextContent).Text
 	}
 	return op, nil
 }
