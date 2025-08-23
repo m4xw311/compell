@@ -13,12 +13,11 @@ This document outlines the features and improvements planned for Compell, based 
 
 ## 🛠️ Tool Implementation
 
-2.  [ ] **Implement Missing Default Tools:** Several standard filesystem and repository tools mentioned in the `README.md` and `tools/tools.go` are not yet implemented.
-    2.1. [ ] **`read_repo`**: A tool to read the entire repository's file structure and content into the context. This is commented out in the default `config.yaml`.
-    2.2. [x] **`create_dir`**: A tool to create a new directory.
-    2.3. [x] **`delete_file`**: A tool to delete a file.
-    2.4. [x] **`delete_dir`**: A tool to delete an empty directory.
-    2.5. [x] **Enhance `write_file`**: Add functionality to replace a specific part of a file (e.g., by line numbers or a search/replace pattern), not just overwrite the whole file as the `README.md` suggests.
+2.  [x] **Implement Missing Default Tools:** Several standard filesystem and repository tools mentioned in the `README.md` and `tools/tools.go` are not yet implemented.
+    2.1. [x] **`create_dir`**: A tool to create a new directory.
+    2.2. [x] **`delete_file`**: A tool to delete a file.
+    2.3. [x] **`delete_dir`**: A tool to delete an empty directory.
+    2.4. [x] **Enhance `write_file`**: Add functionality to replace a specific part of a file (e.g., by line numbers or a search/replace pattern), not just overwrite the whole file as the `README.md` suggests.
 
 ## ⚙️ Configuration & Usability
 

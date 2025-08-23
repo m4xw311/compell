@@ -60,7 +60,7 @@ func NewMCPClient(name, command string, args []string) (*MCPClient, error) {
 		toolListParams.Cursor = toolList.NextCursor
 	}
 
-	fmt.Printf("INFO: Initialized MCP client for '%s' with %d tools.\n", name, len(client.tools))
+	fmt.Printf("INFO: Initialized MCP client for '%s'.\n", name)
 	return client, nil
 }
 

@@ -16,7 +16,6 @@
 - Tools from additional MCP server to be specified in toolset definition and session level disable as <server name>.<tool name>
   - Default tools to be named as <tool name>
 - Default tools
-  - Read whole repo into context
   - Read file into context
   - Write to file
     - Replace whole file
@@ -38,7 +37,6 @@
         - get_current_time
       - name: default # Special toolset that gets loaded when no other toolset is specified
         tools:
-        - read_repo
         - read_file
         - write_file
         - create_dir

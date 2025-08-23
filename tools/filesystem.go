@@ -41,6 +41,47 @@ func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{})
 	return string(content), nil
 }
 
+// ReadDirTool implements the tool for reading directory contents.
+type ReadDirTool struct {
+	fsAccess *config.FilesystemAccess
+}
+
+func (t *ReadDirTool) Name() string { return "read_dir" }
+func (t *ReadDirTool) Description() string {
+	return "Reads the contents of a directory, returning a list of file and directory names. Args: path (string)."
+}
+
+func (t *ReadDirTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	path, ok := args["path"].(string)
+	if !ok {
+		return "", errors.New("missing or invalid 'path' argument")
+	}
+
+	hidden, err := isPathRestricted(path, t.fsAccess.Hidden)
+	if err != nil {
+		return "", err
+	}
+	if hidden {
+		return "", errors.New("access denied: path '%s' is hidden", path)
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to read directory '%s'", path)
+	}
+
+	var names []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() {
+			name += "/"
+		}
+		names = append(names, name)
+	}
+
+	return strings.Join(names, "\n"), nil
+}
+
 // WriteFileTool implements the tool for writing to a file.
 type WriteFileTool struct {
 	fsAccess *config.FilesystemAccess
