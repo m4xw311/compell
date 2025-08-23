@@ -1,3 +1,2 @@
 - Successive tool usage scenario not handled. If a file is to be read and then written to, the tool should not prompt user for input after the read before the write. Observed once. Need to retry
-- The tool should resume with the same arguments as the original invocation.
 - The tool executions when prompting for approval should show what tool is being executed and what arguments are being passed even if the tool usage verbosity is set to none or info

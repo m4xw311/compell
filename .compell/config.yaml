@@ -1,5 +1,7 @@
-llm: gemini
-model: gemini-2.5-flash
+# llm: gemini
+# model: gemini-2.5-flash
+llm: openai
+model: gpt-5-mini
 toolsets:
   - name: read_only
     tools:

@@ -108,7 +108,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error initializing Gemini client: %+v\n", err)
 			os.Exit(1)
 		}
-
+	case "openai":
+		client, err = llm.NewOpenAILLMClient(context.Background(), cfg.Model)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing OpenAI client: %+v\n", err)
+			os.Exit(1)
+		}
 	default:
 		client = &llm.MockLLMClient{}
 	}

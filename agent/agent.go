@@ -62,8 +62,6 @@ func New(cfg *config.Config, sess *session.Session, toolset string, mode Mode, c
 }
 
 func (a *Agent) Run(ctx context.Context, initialPrompt string) error {
-	reader := bufio.NewReader(os.Stdin)
-
 	// If there's an initial prompt from the command line, use it first.
 	if initialPrompt != "" {
 		if err := a.processTurn(ctx, initialPrompt); err != nil {
@@ -71,22 +69,34 @@ func (a *Agent) Run(ctx context.Context, initialPrompt string) error {
 		}
 	}
 
+	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("You: ")
-		userInput, err := reader.ReadString('\n')
-		if err != nil {
-			return errors.Wrapf(err, "failed to read user input")
+		if !scanner.Scan() {
+			// EOF or read error ends the session
+			break
 		}
-		userInput = strings.TrimSpace(userInput)
+
+		userInput := strings.TrimSpace(scanner.Text())
 		if userInput == "" {
 			continue
 		}
 
+		// Exit commands
+		if userInput == "/quit" || userInput == "/exit" {
+			break
+		}
+
 		if err := a.processTurn(ctx, userInput); err != nil {
 			fmt.Printf("Error: %v\n", err)
-			// Decide if you want to continue or exit on error
 		}
 	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Agent) processTurn(ctx context.Context, userInput string) error {
@@ -134,11 +144,11 @@ func (a *Agent) processTurn(ctx context.Context, userInput string) error {
 
 			// Create a message with the tool's output.
 			toolMsg := session.Message{
-				Role: "tool",
-				// The content is the raw output from the tool.
+				Role:    "tool",
 				Content: toolResult,
-				// We associate this result with the original call.
-				ToolCalls: []session.ToolCall{{ToolCallID: toolCall.ToolCallID, Name: toolCall.Name}},
+				ToolCalls: []session.ToolCall{
+					{ToolCallID: toolCall.ToolCallID, Name: toolCall.Name},
+				},
 			}
 			toolResultMessages = append(toolResultMessages, toolMsg)
 		}
@@ -166,7 +176,6 @@ func (a *Agent) executeToolCall(ctx context.Context, toolCall session.ToolCall) 
 		return "", errors.New("tool '%s' not found in the available toolset", toolCall.Name)
 	}
 
-	// In prompt mode, ask for user confirmation.
 	if a.Verbosity == ToolVerbosityAll {
 		fmt.Printf("Compell wants to call tool `%s` with args: %v\n", toolCall.Name, toolCall.Args)
 	} else if a.Verbosity == ToolVerbosityInfo {
@@ -177,10 +186,7 @@ func (a *Agent) executeToolCall(ctx context.Context, toolCall session.ToolCall) 
 	if a.Mode == ModePrompt {
 		fmt.Print("Do you want to allow this? (y/n): ")
 		reader := bufio.NewReader(os.Stdin)
-		answer, err := reader.ReadString('\n')
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to read user confirmation")
-		}
+		answer, _ := reader.ReadString('\n')
 		if strings.TrimSpace(strings.ToLower(answer)) != "y" {
 			return "User denied tool execution.", nil
 		}
