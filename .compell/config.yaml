@@ -46,6 +46,9 @@ filesystem_access:
     - "**/.git/**"
     - "**/node_modules/**"
     - "secret.txt"
+    - ".compell/sessions/**"
+    - "bin/**"
   read_only:
     - "go.mod"
-    - "README.md"
+    - "REQUIREMENTS.md"
+    - "LICENSE"
