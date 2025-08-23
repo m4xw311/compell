@@ -23,9 +23,12 @@ type Message struct {
 }
 
 type Session struct {
-	Name     string    `json:"name"`
-	Messages []Message `json:"messages"`
-	path     string
+	Name          string    `json:"name"`
+	Messages      []Message `json:"messages"`
+	Mode          string    `json:"mode"`           // New field to store mode
+	Toolset       string    `json:"toolset"`        // New field to store toolset
+	ToolVerbosity string    `json:"tool_verbosity"` // New field to store tool verbosity
+	path          string
 }
 
 // New creates a new session.

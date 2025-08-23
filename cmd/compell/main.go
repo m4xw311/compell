@@ -17,12 +17,11 @@ import (
 
 func main() {
 	// Define flags
-	modeFlag := flag.String("m", "prompt", "Execution mode: 'auto' or 'prompt'")
+	modeFlag := flag.String("m", "", "Execution mode: 'auto' or 'prompt'")
 	sessionFlag := flag.String("s", "", "Session name to create or use")
 	toolsetFlag := flag.String("t", "", "Toolset to use (defaults to 'default')")
 	resumeFlag := flag.String("r", "", "Resume a session by name")
-	toolVerbosityFlag := flag.String("tool-verbosity", "none", "Tool verbosity level: 'none', 'info', or 'all'")
-
+	toolVerbosityFlag := flag.String("tool-verbosity", "", "Tool verbosity level: 'none', 'info', or 'all'")
 	flag.Parse()
 
 	// Load configuration
@@ -44,6 +43,17 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("Resuming session: %s\n", sessionName)
+		// Apply session flags if not explicitly overridden by user
+		if *modeFlag == "" && sess.Mode != "" {
+			*modeFlag = sess.Mode
+		}
+		if *toolsetFlag == "" && sess.Toolset != "" {
+			*toolsetFlag = sess.Toolset
+		}
+		if *toolVerbosityFlag == "" && sess.ToolVerbosity != "" {
+			*toolVerbosityFlag = sess.ToolVerbosity
+		}
+
 	} else {
 		// Start new session
 		if sessionName == "" {
@@ -55,6 +65,26 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("Starting new session: %s\n", sessionName)
+	}
+
+	if *modeFlag == "" {
+		*modeFlag = "prompt"
+	}
+	// Seems to work without this. ToDo look into this
+	// if *toolsetFlag == "" {
+	// 	*toolsetFlag = "default"
+	// }
+	if *toolVerbosityFlag == "" {
+		*toolVerbosityFlag = "none"
+	}
+
+	// Update session with current flag values and save
+	sess.Mode = *modeFlag
+	sess.Toolset = *toolsetFlag
+	sess.ToolVerbosity = *toolVerbosityFlag
+	if err := sess.Save(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving session '%s': %+v\n", sessionName, err)
+		os.Exit(1)
 	}
 
 	// Validate mode
@@ -113,6 +143,24 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Agent stopped with an error: %+v\n", err)
 		os.Exit(1)
 	}
+}
+
+// newBoolFlag creates a flag.Value that just sets a boolean to true when the flag is present.
+// This is used to detect if a flag was explicitly passed, even if its value is the default.
+type boolFlag bool
+
+func (b *boolFlag) String() string {
+	return fmt.Sprintf("%t", *b)
+}
+
+func (b *boolFlag) Set(value string) error {
+	*b = true
+	return nil
+}
+
+func newBoolFlag(b *boolFlag) flag.Value {
+	*b = false // Initialize to false
+	return b
 }
 
 func defaultSessionName() string {
