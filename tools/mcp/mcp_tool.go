@@ -18,6 +18,15 @@ type MCPClient struct {
 	tools map[string]*MCPTool // Map of tool name (e.g., "file_reader") to the tool instance.
 }
 
+// GetAllTools returns all tools provided by this MCP server.
+func (c *MCPClient) GetAllTools() []*MCPTool {
+	var allTools []*MCPTool
+	for _, tool := range c.tools {
+		allTools = append(allTools, tool)
+	}
+	return allTools
+}
+
 // NewMCPClient starts the MCP server subprocess and initializes the client.
 // It is responsible for discovering the tools provided by the server.
 func NewMCPClient(name, command string, args []string) (*MCPClient, error) {

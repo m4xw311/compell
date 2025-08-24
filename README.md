@@ -63,11 +63,11 @@ Compell accepts the following command-line arguments:
 
 Compell loads its configuration from `config.yaml` files. It first looks for a user-level configuration at `~/.compell/config.yaml`, and then for a project-level configuration at `./.compell/config.yaml`. The project-level configuration overrides any conflicting settings in the user-level configuration.
 
-An example `config.yaml` might look like this:
+An example `config.yaml` demonstrating the wildcard feature for MCP tools can be found in `example_config.yaml`. Here's a snippet showing how to use wildcards:
 
 ```yaml
 llm: gemini
-model: gemini-pro
+model: gemini-2.5-flash
 toolsets:
   - name: default
     tools:
@@ -75,19 +75,12 @@ toolsets:
       - write_file
       - execute_command
       - read_dir
+      # Using wildcard to enable all tools from the gopls MCP server
+      - gopls.*
 additional_mcp_servers:
-  - name: my_custom_tool
-    command: python
-    args: ["/path/to/my_tool.py"]
-allowed_commands:
-  - git
-  - go
-filesystem_access:
-  hidden:
-    - .git/
-    - node_modules/
-  read_only:
-    - important_docs/
+  - name: gopls
+    command: gopls
+    args: ["mcp"]
 ```
 
 ### Configuration Options:
@@ -98,7 +91,7 @@ filesystem_access:
 *   `model` (string): Defines the specific model to be used by the chosen LLM client (e.g., `gemini-pro`).
 *   `toolsets` (list of objects): A collection of toolset definitions. Each toolset object has:
     *   `name` (string): A unique name for the toolset (e.g., `default`, `python_dev`).
-    *   `tools` (list of strings): A list of tool names that belong to this toolset.
+    *   `tools` (list of strings): A list of tool names that belong to this toolset. You can use wildcards for MCP tools by specifying `<server_name>.*` to include all tools from a specific MCP server.
 *   `additional_mcp_servers` (list of objects): Allows you to define custom Multi-Client Protocol (MCP) servers. Each object includes:
     *   `name` (string): The name of the custom tool.
     *   `command` (string): The executable command for the tool.

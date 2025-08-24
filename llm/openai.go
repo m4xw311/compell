@@ -20,13 +20,26 @@ type OpenAILLMClient struct {
 }
 
 // NewOpenAILLMClient creates a new OpenAILLMClient. It requires the OPENAI_API_KEY environment variable to be set.
+// It also supports OPENAI_BASE_URL for custom API endpoints.
 func NewOpenAILLMClient(ctx context.Context, modelName string) (*OpenAILLMClient, error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		return nil, errors.New("OPENAI_API_KEY environment variable not set")
 	}
+
+	// Create client options
+	options := []option.RequestOption{
+		option.WithAPIKey(apiKey),
+	}
+
+	// Check for custom base URL
+	baseURL := os.Getenv("OPENAI_BASE_URL")
+	if baseURL != "" {
+		options = append(options, option.WithBaseURL(baseURL))
+	}
+
 	// The v2 SDK uses functional options for configuration.
-	c := openai.NewClient(option.WithAPIKey(apiKey))
+	c := openai.NewClient(options...)
 	// The &c is required, dn not replace and just use c
 	return &OpenAILLMClient{client: &c, model: modelName}, nil
 }

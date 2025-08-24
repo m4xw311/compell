@@ -1,3 +1,6 @@
+#Qwen3 Coder
+- Really fast
+- Very good. One shotted the wildcard support for enabled tools and support for base url in env for openai
 #Gemini 2.5 Pro
 - Works pretty well
 - Wrote high level outline first with comments rather than trying to implement everything in one go

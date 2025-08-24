@@ -69,7 +69,7 @@ func (r *ToolRegistry) GetTool(name string) (Tool, bool) {
 func (r *ToolRegistry) GetActiveTools(ts *config.Toolset) ([]Tool, error) {
 	var activeTools []Tool
 	for _, toolName := range ts.Tools {
-		// Handle MCP tools like <server>:<tool>
+		// Handle MCP tools like <server>:<tool> or <server>.* for wildcards
 		if strings.Contains(toolName, ".") {
 			parts := strings.SplitN(toolName, ".", 2)
 			if len(parts) != 2 {
@@ -81,6 +81,16 @@ func (r *ToolRegistry) GetActiveTools(ts *config.Toolset) ([]Tool, error) {
 			if !ok {
 				return nil, errors.New("MCP server '%s' for tool '%s' not registered", serverName, toolName)
 			}
+
+			// Handle wildcard pattern
+			if mcpToolName == "*" {
+				// Add all tools from this MCP server
+				for _, t := range client.GetAllTools() {
+					activeTools = append(activeTools, t)
+				}
+				continue
+			}
+
 			if t, ok := client.GetTool(mcpToolName); ok {
 				activeTools = append(activeTools, t)
 			} else {

@@ -1,7 +1,9 @@
-llm: gemini
-model: gemini-2.5-flash
+# llm: gemini
+# model: gemini-2.5-flash
 # llm: openai
 # model: gpt-5-mini
+llm: openai
+model: qwen/qwen3-coder
 toolsets:
   - name: read_only
     tools:
@@ -14,9 +16,7 @@ toolsets:
       - execute_command
       - mcp-sqlite.list_tables
       - mcp-sqlite.query
-      - gopls.go_workspace
-      - gopls.go_package_api
-      - gopls.go_diagnostics
+      - gopls.*
       # - google-pse-mcp.search # Example for a not-yet-implemented MCP tool
 
 # List of additional servers (e.g., for external tools like web search)
