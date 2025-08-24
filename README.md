@@ -63,6 +63,25 @@ Compell accepts the following command-line arguments:
 
 Compell loads its configuration from `config.yaml` files. It first looks for a user-level configuration at `~/.compell/config.yaml`, and then for a project-level configuration at `./.compell/config.yaml`. The project-level configuration overrides any conflicting settings in the user-level configuration.
 
+### Environment Variables
+
+Depending on which LLM you configure in your `config.yaml`, you'll need to set the corresponding environment variables:
+
+* **For Gemini models**: Set `GEMINI_API_KEY` to your Google AI API key
+* **For OpenAI models**: Set `OPENAI_API_KEY` to your OpenAI API key. Optionally, set `OPENAI_BASE_URL` if you're using a custom endpoint or proxy.
+
+Example for setting up Gemini:
+```bash
+export GEMINI_API_KEY="your-google-ai-api-key-here"
+```
+
+Example for setting up OpenAI:
+```bash
+export OPENAI_API_KEY="your-openai-api-key-here"
+# Optionally, for custom endpoints:
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+```
+
 An example `config.yaml` demonstrating the wildcard feature for MCP tools can be found in `example_config.yaml`. Here's a snippet showing how to use wildcards:
 
 ```yaml
