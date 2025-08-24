@@ -114,6 +114,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error initializing OpenAI client: %+v\n", err)
 			os.Exit(1)
 		}
+	case "bedrock":
+		client, err = llm.NewBedrockLLMClient(context.Background(), cfg.Model)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing Bedrock client: %+v\n", err)
+			os.Exit(1)
+		}
 	default:
 		client = &llm.MockLLMClient{}
 	}

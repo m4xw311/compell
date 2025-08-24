@@ -2,6 +2,7 @@
 - Really fast
 - Very good. One shotted the wildcard support for enabled tools and support for base url in env for openai
 - Hesitated to use the zed built in edit tool but rather gave the code. Used the tool when nudged.
+- One shotted support for anthropic on AWS Bedrock
 #Gemini 2.5 Pro
 - Works pretty well
 - Wrote high level outline first with comments rather than trying to implement everything in one go

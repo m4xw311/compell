@@ -69,6 +69,7 @@ Depending on which LLM you configure in your `config.yaml`, you'll need to set t
 
 * **For Gemini models**: Set `GEMINI_API_KEY` to your Google AI API key
 * **For OpenAI models**: Set `OPENAI_API_KEY` to your OpenAI API key. Optionally, set `OPENAI_BASE_URL` if you're using a custom endpoint or proxy.
+* **For Anthropic models on AWS Bedrock**: Configure your AWS credentials using the standard AWS configuration methods (environment variables, AWS credentials file, etc.). Use the model's inference profile ID rather than just the model ID (e.g., `us.anthropic.claude-opus-4-1-20250805-v1:0` rathe than`anthropic.claude-opus-4-20250514-v1:0`).
 
 Example for setting up Gemini:
 ```bash
@@ -106,8 +107,10 @@ additional_mcp_servers:
 
 *   `llm` (string): Specifies the Large Language Model (LLM) client to use. Currently supported:
     *   `gemini`
+    *   `openai`
+    *   `bedrock` (for Anthropic models on AWS Bedrock)
     *   `mock` (for testing purposes)
-*   `model` (string): Defines the specific model to be used by the chosen LLM client (e.g., `gemini-pro`).
+*   `model` (string): Defines the specific model to be used by the chosen LLM client (e.g., `gemini-pro`). For Anthropic models on Bedrock, use the model's inference profile ID (e.g., `anthropic.claude-3-5-sonnet-20240620-v1:0`) rather than just the model ID.
 *   `toolsets` (list of objects): A collection of toolset definitions. Each toolset object has:
     *   `name` (string): A unique name for the toolset (e.g., `default`, `python_dev`).
     *   `tools` (list of strings): A list of tool names that belong to this toolset. You can use wildcards for MCP tools by specifying `<server_name>.*` to include all tools from a specific MCP server.

@@ -2,8 +2,12 @@
 # model: gemini-2.5-flash
 # llm: openai
 # model: gpt-5-mini
-llm: openai
-model: qwen/qwen3-coder
+# llm: openai
+# model: qwen/qwen3-coder
+# llm: bedrock
+# model: us.anthropic.claude-opus-4-1-20250805-v1:0
+llm: bedrock
+model: us.deepseek.r1-v1:0
 toolsets:
   - name: read_only
     tools:
