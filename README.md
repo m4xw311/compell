@@ -79,8 +79,24 @@ export GEMINI_API_KEY="your-google-ai-api-key-here"
 Example for setting up OpenAI:
 ```bash
 export OPENAI_API_KEY="your-openai-api-key-here"
-# Optionally, for custom endpoints:
-export OPENAI_BASE_URL="https://api.openai.com/v1"
+```
+
+Example for using models (such as qwen/qwen3-coder) from Openrouter:
+```bash
+export OPENAI_API_KEY="your-openrouter-api-key-here"
+export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
+```
+
+Example for setting up Antropic on AWS Bedrock:
+```bash
+export AWS_REGION=us-east-1
+export AWS_BEARER_TOKEN_BEDROCK="your-aws-bearer-token-here"
+```
+or witb AWS profile and sso login
+```bash
+export AWS_REGION=us-east-1
+export AWS_PROFILE=your-aws-profile-here
+aws sso login
 ```
 
 An example `config.yaml` demonstrating the wildcard feature for MCP tools can be found in `example_config.yaml`. Here's a snippet showing how to use wildcards:
