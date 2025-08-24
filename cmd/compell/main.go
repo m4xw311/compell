@@ -120,6 +120,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error initializing Bedrock client: %+v\n", err)
 			os.Exit(1)
 		}
+	case "anthropic":
+		client, err = llm.NewAnthropicLLMClient(context.Background(), cfg.Model)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing Anthropic client: %+v\n", err)
+			os.Exit(1)
+		}
 	default:
 		client = &llm.MockLLMClient{}
 	}

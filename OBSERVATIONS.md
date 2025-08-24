@@ -8,6 +8,9 @@
 - Wrote high level outline first with comments rather than trying to implement everything in one go
 - Fleshing out the details with the available comments worked reasonably well
 - Even this makes basis errors like not using &c instead of c when a assignment to a pointer
+- Did not one shot implementation of Anthropic support (direct, not Bedrock)
+  - Was overall right but there were improper struct types and fields
+  - Suspecting due to mismatch between current version of the sdk and what the mpdel assumed
 #GPT-5
 - Seems to work similar to Gemini 2.5 Pro
 - Hit the limits so did not do too much
@@ -21,4 +24,5 @@
   - Mixes up things from both implementations
   - Many circular errror fixes, one fix gets back and earlier one
   - Suspecting that the point Yann LeCun had about doing the token generation in an abstract space rather than language space may help here. ToDo: find exactly what he said
+  - Same issue when a library has breaking changes across versions.
 - Code refactoring seems to work better if it is sufficiently composed into small functions. A very long function causes "confusion"

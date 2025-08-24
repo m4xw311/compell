@@ -6,8 +6,10 @@
 # model: qwen/qwen3-coder
 # llm: bedrock
 # model: us.anthropic.claude-opus-4-1-20250805-v1:0
-llm: bedrock
-model: us.deepseek.r1-v1:0
+# llm: bedrock
+# model: us.deepseek.r1-v1:0
+llm: anthropic
+model: claude-opus-4-1-20250805
 toolsets:
   - name: read_only
     tools:
