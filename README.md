@@ -7,9 +7,9 @@ To install Compell, you need to have Go installed (version 1.20 or later).
 
 1. Install the binary:
    ```bash
-   go install github.com/m4xw311/compell@latest
+   go install go install github.com/m4xw311/compell/cmd/compell@latest
    ```
-   This will install the `compell` executable in your `$GOPATH/bin` directory.
+   This will install the `compell` executable in your `$(go env GOPATH)/bin` directory.
 
 Alternatively, you can build from source:
 

@@ -2,27 +2,30 @@
 # model: gemini-2.5-flash
 # llm: openai
 # model: gpt-5-mini
-# llm: openai
-# model: qwen/qwen3-coder
+llm: openai
+model: qwen/qwen3-coder
 # llm: bedrock
 # model: us.anthropic.claude-opus-4-1-20250805-v1:0
 # llm: bedrock
 # model: us.deepseek.r1-v1:0
-llm: anthropic
-model: claude-opus-4-1-20250805
+# llm: anthropic
+# model: claude-opus-4-1-20250805
+# llm: openai
+# model: deepseek/deepseek-chat-v3.1
 toolsets:
   - name: read_only
     tools:
       - read_file
+      - read_dir
   - name: default # Special toolset that gets loaded when no other toolset is specified
     tools:
       - read_dir
       - read_file
       - write_file
       - execute_command
-      - mcp-sqlite.list_tables
-      - mcp-sqlite.query
-      - gopls.*
+      # - mcp-sqlite.list_tables
+      # - mcp-sqlite.query
+      # - gopls.*
       # - google-pse-mcp.search # Example for a not-yet-implemented MCP tool
 
 # List of additional servers (e.g., for external tools like web search)
@@ -37,17 +40,17 @@ additional_mcp_servers:
   #     - <cx>
   # Test with inspector:
   # npx -y @modelcontextprotocol/inspector npx -y mcp-sqlite test.db
-  - name: mcp-sqlite
-    command: npx
-    args:
-      - -y
-      - mcp-sqlite
-      - test.db
-  # go install go install golang.org/x/tools/gopls@latest
-  - name: gopls
-    command: gopls
-    args:
-      - mcp
+  # - name: mcp-sqlite
+  #   command: npx
+  #   args:
+  #     - -y
+  #     - mcp-sqlite
+  #     - test.db
+  # # go install go install golang.org/x/tools/gopls@latest
+  # - name: gopls
+  #   command: gopls
+  #   args:
+  #     - mcp
 
 # Allowed OS commands
 allowed_commands:
@@ -64,6 +67,7 @@ filesystem_access:
     - "secret.txt"
     - ".compell/sessions/**"
     - "bin/**"
+    - work_notes.md
   read_only:
     - "go.mod"
     - "REQUIREMENTS.md"

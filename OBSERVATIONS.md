@@ -19,6 +19,9 @@
 - Used some random guy's fork or implementation of openapi go sdk rather than use the official one
 - Updated once explictly asked to
 - Tried to fix errors by attempting to edit the sdk code rather than the faulty code it wrote
+# Anthropic Claude on AWS Bedrock
+- Request throttling issues
+- Slow response
 #General Observations
 - Models seems to really get "confused" when there are multiple popular libraries for a solution, like the case of the openai go sdk, which have different ways of doing the same thing.
   - Mixes up things from both implementations
