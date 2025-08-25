@@ -20,7 +20,7 @@ func (t *ExecuteCommandTool) Description() string {
 		return "Executes a shell command. No commands are currently allowed. Args: command (string)."
 	}
 
-	allowedList := "Allowed command patterns:\n"
+	allowedList := "Allowed command wildcard patterns:\n"
 	for _, cmd := range t.allowedCommands {
 		allowedList += fmt.Sprintf("- %s\n", cmd)
 	}
