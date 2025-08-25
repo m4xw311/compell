@@ -16,7 +16,16 @@ type ExecuteCommandTool struct {
 
 func (t *ExecuteCommandTool) Name() string { return "execute_command" }
 func (t *ExecuteCommandTool) Description() string {
-	return "Executes a shell command. Args: command (string)."
+	if len(t.allowedCommands) == 0 {
+		return "Executes a shell command. No commands are currently allowed. Args: command (string)."
+	}
+
+	allowedList := "Allowed command patterns:\n"
+	for _, cmd := range t.allowedCommands {
+		allowedList += fmt.Sprintf("- %s\n", cmd)
+	}
+
+	return fmt.Sprintf("Executes a shell command. Args: command (string).\n%s", allowedList)
 }
 
 func (t *ExecuteCommandTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
