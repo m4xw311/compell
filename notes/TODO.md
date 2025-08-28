@@ -2,7 +2,8 @@
 
 ## Agent Client Protocol
 1. [ ] Implement the Agent Client Protocol support so that we can integrate with Zed
- - https://agentclientprotocol.com/overview/introduction
+ - Refer to ACP.md for more details on what it is
+ - Add a --acp flag to the command line interface to enable Agent Client Protocol support.
 
 ## 🛠️ Tool Implementation
 

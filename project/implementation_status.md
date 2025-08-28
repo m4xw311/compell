@@ -1,0 +1,17 @@
+# Implementation Status
+- [x] 1. Command line coding assistant able to generate code, documentation, and tests.
+- [x] 2. Support for LLMs - Gemini, OpenAI, Anthropic (w/ and w/o AWS Bedrock), OpenAI compatible providers from Openrouter
+- [x] 3. Default filesystem tools
+- [x] 4. MCP support to drop in tools
+- [ ] 5. Support for web interface over websocket
+  - Status: work in progress
+  - Goal: to help provide helpers in the UI
+  - Current implementation
+    - a websocket bridge that forwards the messages between the UI and the agent.
+    - a simple single page web app (currently just testing by running `python3 -m  http.server` in the web folder)
+    - combine the websocket bridge and the single page web app to have a unified app serving the web interface
+      - modify the websocket bridge to include a web server to serve the web app
+    - allow flexible implementation so that the websocket could be remote and the web ui could be local - default both to local
+- [ ] 6. Support for Agent Client Protocol (ACP)
+  - Status: to be implemented
+  - Goal: to help integrate the agent with Zed and any other IDEs that support ACP to provide users a friendly interface for interacting with the agent.
