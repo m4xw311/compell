@@ -58,6 +58,12 @@ func handleWS(cmdArgs []string) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
+		// Wait for the command to finish
+		done := make(chan error, 1)
+		go func() {
+			done <- cmd.Wait()
+		}()
+
 		// Pipe agent stdout → WebSocket
 		go func() {
 			scanner := bufio.NewScanner(stdout)
@@ -84,16 +90,41 @@ func handleWS(cmdArgs []string) func(http.ResponseWriter, *http.Request) {
 			}
 		}()
 
-		// Pipe WebSocket messages → agent stdin
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				log.Println("WS read error:", err)
-				return
+		// Channel for WebSocket messages
+		messageChan := make(chan []byte, 10)
+		errorChan := make(chan error, 1)
+
+		// Goroutine to read WebSocket messages
+		go func() {
+			for {
+				_, msg, err := conn.ReadMessage()
+				if err != nil {
+					errorChan <- err
+					return
+				}
+				messageChan <- msg
 			}
-			_, err = stdin.Write(append(msg, '\n'))
-			if err != nil {
-				log.Println("Stdin write error:", err)
+		}()
+
+		// Pipe WebSocket messages → agent stdin and handle command exit
+		for {
+			select {
+			case err := <-done:
+				if err != nil {
+					log.Printf("Agent exited with error: %v", err)
+					os.Exit(1)
+				} else {
+					log.Println("Agent exited successfully")
+					os.Exit(0)
+				}
+			case msg := <-messageChan:
+				_, err := stdin.Write(append(msg, '\n'))
+				if err != nil {
+					log.Println("Stdin write error:", err)
+					return
+				}
+			case err := <-errorChan:
+				log.Println("WS read error:", err)
 				return
 			}
 		}

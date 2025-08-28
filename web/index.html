@@ -1,20 +1,118 @@
 <!doctype html>
 <html>
+    <head>
+        <style>
+            :root {
+                --background-color: white;
+                --text-color: black;
+                --error-color: red;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --background-color: #1a1a1a;
+                    --text-color: #e0e0e0;
+                    --error-color: #ff6b6b;
+                }
+            }
+
+            body {
+                background-color: var(--background-color);
+                color: var(--text-color);
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #chat {
+                flex: 1;
+                overflow-y: auto;
+                padding: 20px;
+            }
+
+            .stdout {
+                color: var(--text-color);
+                margin-bottom: 10px;
+            }
+
+            .stderr {
+                color: var(--error-color);
+                margin-bottom: 10px;
+            }
+
+            #msg {
+                width: 100%;
+                padding: 15px;
+                border: none;
+                border-top: 1px solid #ccc;
+                background-color: var(--background-color);
+                color: var(--text-color);
+                box-sizing: border-box;
+            }
+        </style>
+    </head>
     <body>
         <div id="chat"></div>
-        <input id="msg" autofocus />
+        <input id="msg" autofocus placeholder="Type your message here..." />
+        <div
+            id="status"
+            style="padding: 5px; text-align: center; display: none"
+        ></div>
         <script>
             const ws = new WebSocket("ws://localhost:8080/ws");
             const chat = document.getElementById("chat");
             const input = document.getElementById("msg");
+            const status = document.getElementById("status");
+
+            ws.onopen = () => {
+                status.style.display = "none";
+                input.disabled = false;
+            };
+
+            ws.onclose = () => {
+                status.textContent =
+                    "Connection closed. Please refresh the page after rerunning bridge.";
+                status.style.display = "block";
+                input.disabled = true;
+            };
+
+            ws.onerror = (error) => {
+                status.textContent =
+                    "Connection error. Please refresh the page after rerunning bridge.";
+                status.style.display = "block";
+                input.disabled = true;
+            };
 
             ws.onmessage = (e) => {
                 agent_response = JSON.parse(e.data);
                 if (agent_response.type === "stdout") {
-                    chat.innerHTML += `<div><b>Agent:</b> ${agent_response.data}</div>`;
+                    // Workaround. What works in console does not work in browser.
+                    // There is no \n after prompting user with You: so that comes along with the next message
+                    // Removing it so that there is no extra You: before each Compell:
+                    prefix = "You: ";
+                    if (agent_response.data.startsWith(prefix)) {
+                        agent_response.data = agent_response.data.replace(
+                            new RegExp(`^${prefix}`),
+                            "",
+                        );
+                    }
+                    // Make the Compell: bold
+                    prefix = "Compell: ";
+                    if (agent_response.data.startsWith(prefix)) {
+                        agent_response.data = agent_response.data.replace(
+                            new RegExp(`^${prefix}`),
+                            `<b>${prefix}</b>`,
+                        );
+                    }
+                    chat.innerHTML += `<div class="stdout">${agent_response.data}</div>`;
                 } else if (agent_response.type === "stderr") {
-                    chat.innerHTML += `<div><b>ERR:</b> ${agent_response.data}</div>`;
+                    chat.innerHTML += `<div class="stderr">${agent_response.data}</div>`;
                 }
+                // Scroll to bottom of chat
+                chat.scrollTop = chat.scrollHeight;
             };
 
             input.addEventListener("keydown", (e) => {
@@ -22,6 +120,8 @@
                     ws.send(input.value);
                     chat.innerHTML += `<div><b>You:</b> ${input.value}</div>`;
                     input.value = "";
+                    // Scroll to bottom of chat
+                    chat.scrollTop = chat.scrollHeight;
                 }
             });
         </script>
