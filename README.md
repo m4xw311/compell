@@ -138,3 +138,15 @@ additional_mcp_servers:
 *   `filesystem_access` (object): Configures the agent's access to the filesystem.
     *   `hidden` (list of strings): A list of glob patterns for files and directories that the agent should not be able to see or interact with. The `.compell` directory is hidden by default.
     *   `read_only` (list of strings): A list of glob patterns for files and directories that the agent can read but not modify or delete.
+
+## Websocket Bridge
+TODO: This is a work in progress.
+To test in a development environment:
+```
+make build
+make build BINARY_NAME=ws_bridge
+./bin/ws_bridge ./bin/compell -m auto -s test-ws -tool-verbosity all
+# In another terminal
+python3 -m http.server
+```
+A crude web chat interface can be accessed at http://localhost:8000.

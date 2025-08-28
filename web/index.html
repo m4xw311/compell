@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+    <body>
+        <div id="chat"></div>
+        <input id="msg" autofocus />
+        <script>
+            const ws = new WebSocket("ws://localhost:8080/ws");
+            const chat = document.getElementById("chat");
+            const input = document.getElementById("msg");
+
+            ws.onmessage = (e) => {
+                agent_response = JSON.parse(e.data);
+                if (agent_response.type === "stdout") {
+                    chat.innerHTML += `<div><b>Agent:</b> ${agent_response.data}</div>`;
+                } else if (agent_response.type === "stderr") {
+                    chat.innerHTML += `<div><b>ERR:</b> ${agent_response.data}</div>`;
+                }
+            };
+
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    ws.send(input.value);
+                    chat.innerHTML += `<div><b>You:</b> ${input.value}</div>`;
+                    input.value = "";
+                }
+            });
+        </script>
+    </body>
+</html>
