@@ -58,6 +58,7 @@ Compell accepts the following command-line arguments:
     *   `none`: No tool output is shown. (Default)
     *   `info`: Displays basic information about tool execution.
     *   `all`: Shows all output from tool executions.
+*   `--acp` (boolean): Enables Agent Client Protocol support for integration with IDEs like Zed.
 
 ## Configuration
 
@@ -138,6 +139,23 @@ additional_mcp_servers:
 *   `filesystem_access` (object): Configures the agent's access to the filesystem.
     *   `hidden` (list of strings): A list of glob patterns for files and directories that the agent should not be able to see or interact with. The `.compell` directory is hidden by default.
     *   `read_only` (list of strings): A list of glob patterns for files and directories that the agent can read but not modify or delete.
+
+## Agent Client Protocol (ACP) Support
+
+Compell now supports the Agent Client Protocol (ACP), which allows it to integrate with code editors like Zed. To enable ACP mode, use the `--acp` flag when running Compell:
+
+```bash
+compell --acp
+```
+
+In ACP mode, Compell communicates using JSON-RPC over stdio instead of the regular CLI interaction. This mode is designed for integration with IDEs that support ACP.
+
+ACP mode supports the following methods:
+- `initialize` - Initializes the agent and returns capabilities
+- `completion` - Processes a prompt and returns the result
+- `ping` - Simple ping/pong for testing connectivity
+
+When running in ACP mode, Compell sends an `initialized` notification upon startup.
 
 ## Websocket Bridge
 TODO: This is a work in progress.

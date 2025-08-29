@@ -13,5 +13,7 @@
       - modify the websocket bridge to include a web server to serve the web app
     - allow flexible implementation so that the websocket could be remote and the web ui could be local - default both to local
 - [ ] 6. Support for Agent Client Protocol (ACP)
-  - Status: to be implemented
+  - Feature Folder: acp
+  - Status: work in progress
   - Goal: to help integrate the agent with Zed and any other IDEs that support ACP to provide users a friendly interface for interacting with the agent.
+  - Implementation: Added --acp flag to command line interface that enables JSON-RPC communication over stdio instead of regular CLI interaction. Basic integration with Zed is functional. Able to chat with agent. Further testing to see what is missing.

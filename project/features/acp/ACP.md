@@ -19,9 +19,9 @@ The Agent Client Protocol defines a standard interface for communication between
 ## Design Philosophy
 
 The protocol architecture follows several key principles:
-1. MCP-friendly: The protocol is built on JSON-RPC, and re-uses MCP types where possible so that integrators don’t need to build yet-another representation for common data types.
-2. UX-first: It is designed to solve the UX challenges of interacting with AI agents; ensuring there’s enough flexibility to render clearly the agents intent, but is no more abstract than it needs to be.
-3. Trusted: ACP works when you’re using a code editor to talk to a model you trust. You still have controls over the agent’s tool calls, but the code editor gives the agent access to local files and MCP servers.
+1. MCP-friendly: The protocol is built on JSON-RPC, and re-uses MCP types where possible so that integrators don't need to build yet-another representation for common data types.
+2. UX-first: It is designed to solve the UX challenges of interacting with AI agents; ensuring there's enough flexibility to render clearly the agents intent, but is no more abstract than it needs to be.
+3. Trusted: ACP works when you're using a code editor to talk to a model you trust. You still have controls over the agent's tool calls, but the code editor gives the agent access to local files and MCP servers.
 
 ## Setup
 
@@ -29,7 +29,7 @@ When the user tries to connect to an agent, the editor boots the agent sub-proce
 
 Each connection can suppport several concurrent sessions, so you can have multiple trains of thought going on at once.
 
-ACP makes heavy use of JSON-RPC notifications to allow the agent to stream updates to the UI in real-time. It also uses JSON-RPC’s bidrectional requests to allow the agent to make requests of the code editor: for example to request permissions for a tool call.
+ACP makes heavy use of JSON-RPC notifications to allow the agent to stream updates to the UI in real-time. It also uses JSON-RPC's bidrectional requests to allow the agent to make requests of the code editor: for example to request permissions for a tool call.
 
 ## MCP
 

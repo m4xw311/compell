@@ -29,3 +29,16 @@
   - Suspecting that the point Yann LeCun had about doing the token generation in an abstract space rather than language space may help here. ToDo: find exactly what he said
   - Same issue when a library has breaking changes across versions.
 - Code refactoring seems to work better if it is sufficiently composed into small functions. A very long function causes "confusion"
+- I was able to generate ACP support in compell by vibe coding in Zed. Gemini 2.5 Pro, Claude and GPT-5 all had rate limit issues. Qwen was working fine but the code it generated did not work as expected. I tried switching the LLMS inbetween a number of times so not sure which one did how much of what I eneded up with.
+  - Human still needed for integrations between systems.
+  - Models do not at the moment have the intuition to troubleshoot issues by stepping out of the documentation and just printing out some traces  to see what is happening during execution.
+  - Since ACP would have compell run by Zed I made Qwen write out traces to a file. It helped in the troubleshooting process.
+  - Got into a real mess when trying to fix integration with Zed
+  - There were many issues with the code such as incorrect types - type of ID was assigned to result and that of result to ID for example
+  - Did not have any type checks and conversions for `any` type variables. Directly tried to find length.
+    - The length check may have been a issue introduced by a vibe code attempt to fix the integration issue
+    - I overdid the whole type check etc when I could have just json marshal->unmashal to turn the any to struct. Fixed manually but maybe the agent may have noticed it if I asked to review.
+  - These may have been fixable by the agent with some retries but the issue that made me spend a lot of time investigating and tracing was how the agent did not complete initialization when integrated with Zed.
+    - In ui it said initializing, in logs it seemed like the agent was waiting for some input from Zed which was not coming through
+    - The issue was how the JSON RPC response was being writtent to stdout. It was missing a newline in the end which caused Zed to expect more data and wait for it indefinitely. Compell on the other hand was waiting for Zed to send a message which did not come as Zed was waiting.
+    - It does not seem to me that this one would have been found by any coding assistant with any tools today. There is no error to work from. Just two programs waiting on each other.

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/m4xw311/compell/acp"
 	"github.com/m4xw311/compell/agent"
 	"github.com/m4xw311/compell/config"
 	"github.com/m4xw311/compell/llm"
@@ -22,6 +23,8 @@ func main() {
 	toolsetFlag := flag.String("t", "", "Toolset to use (defaults to 'default')")
 	resumeFlag := flag.String("r", "", "Resume a session by name")
 	toolVerbosityFlag := flag.String("tool-verbosity", "", "Tool verbosity level: 'none', 'info', or 'all'")
+	acpFlag := flag.Bool("acp", false, "Enable Agent Client Protocol support")
+	traceFlag := flag.Bool("trace", false, "Enable execution tracing to troubleshoot issues")
 	flag.Parse()
 
 	// Load configuration
@@ -70,10 +73,6 @@ func main() {
 	if *modeFlag == "" {
 		*modeFlag = "prompt"
 	}
-	// Seems to work without this. ToDo look into this
-	// if *toolsetFlag == "" {
-	// 	*toolsetFlag = "default"
-	// }
 	if *toolVerbosityFlag == "" {
 		*toolVerbosityFlag = "none"
 	}
@@ -151,33 +150,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get initial prompt from remaining arguments
-	initialPrompt := strings.Join(flag.Args(), " ")
+	// Check if ACP mode is enabled
+	if *acpFlag {
+		// Run in ACP mode
+		fmt.Fprintln(os.Stdout, "Starting Compell in ACP mode...")
+		if err := acp.Run(context.Background(), compellAgent, traceFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "ACP mode failed: %+v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Get initial prompt from remaining arguments
+		initialPrompt := strings.Join(flag.Args(), " ")
 
-	// Run the agent
-	fmt.Println("Compell is ready. Type your prompt.")
-	if err := compellAgent.Run(context.Background(), initialPrompt); err != nil {
-		fmt.Fprintf(os.Stderr, "Agent stopped with an error: %+v\n", err)
-		os.Exit(1)
+		// Run the agent in regular CLI mode
+		fmt.Println("Compell is ready. Type your prompt.")
+		if err := compellAgent.Run(context.Background(), initialPrompt); err != nil {
+			fmt.Fprintf(os.Stderr, "Agent stopped with an error: %+v\n", err)
+			os.Exit(1)
+		}
 	}
-}
-
-// newBoolFlag creates a flag.Value that just sets a boolean to true when the flag is present.
-// This is used to detect if a flag was explicitly passed, even if its value is the default.
-type boolFlag bool
-
-func (b *boolFlag) String() string {
-	return fmt.Sprintf("%t", *b)
-}
-
-func (b *boolFlag) Set(value string) error {
-	*b = true
-	return nil
-}
-
-func newBoolFlag(b *boolFlag) flag.Value {
-	*b = false // Initialize to false
-	return b
 }
 
 func defaultSessionName() string {
