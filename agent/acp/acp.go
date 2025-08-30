@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -432,7 +433,13 @@ func (s *acpServer) handleSessionLoad(req *jsonrpcRequest) {
 type contentBlock struct {
 	Type string `json:"type"`
 	Text string `json:"text,omitempty"`
-	// We ignore other fields for minimal MVP
+	// ResourceLink fields
+	URI         string `json:"uri,omitempty"`
+	Name        string `json:"name,omitempty"`
+	MimeType    string `json:"mimeType,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	Size        *int64 `json:"size,omitempty"`
 }
 
 // handleSessionPrompt processes a prompt request for a session
@@ -476,15 +483,24 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 		return
 	}
 
-	// Extract user text from prompt content blocks (text only for MVP)
-	s.trace(fmt.Sprintf("handleSessionPrompt: extracting user text from prompt: %+v", p.Prompt))
+	// Extract user text from prompt content blocks
+	s.trace(fmt.Sprintf("handleSessionPrompt: received %d content blocks", len(p.Prompt)))
+	for i, block := range p.Prompt {
+		switch block.Type {
+		case "text":
+			s.trace(fmt.Sprintf("  Block %d: type=text, text=%q", i, block.Text))
+		case "resource_link":
+			s.trace(fmt.Sprintf("  Block %d: type=resource_link, uri=%s, name=%s, mimeType=%s, title=%s, description=%s, size=%v",
+				i, block.URI, block.Name, block.MimeType, block.Title, block.Description, block.Size))
+		default:
+			s.trace(fmt.Sprintf("  Block %d: type=%s (unsupported)", i, block.Type))
+		}
+	}
 	userText := extractUserText(p.Prompt)
 	s.trace(fmt.Sprintf("handleSessionPrompt: extracted user text: %s", userText))
 
-	// Append user message
-	s.trace("handleSessionPrompt: appending user message")
-	userMsg := session.Message{Role: "user", Content: userText}
-	sess.AddMessage(userMsg)
+	// Note: ProcessUserInput will add the user message to the session
+	// so we don't need to do it here to avoid duplication
 
 	// Create callbacks for ACP-specific behavior
 	callbacks := agent.ProcessCallbacks{
@@ -594,11 +610,76 @@ func (s *acpServer) nextSessionID() string {
 
 // extractUserText extracts and concatenates text content from content blocks
 // It filters out non-text blocks and trims whitespace from each text block
+// readFileFromURI attempts to read file contents from a file:// URI
+func readFileFromURI(uri string) (string, error) {
+	parsedURL, err := url.Parse(uri)
+	if err != nil {
+		return "", fmt.Errorf("invalid URI: %v", err)
+	}
+
+	if parsedURL.Scheme != "file" {
+		return "", fmt.Errorf("unsupported URI scheme: %s", parsedURL.Scheme)
+	}
+
+	// Get the file path from the URI
+	filePath := parsedURL.Path
+
+	// Read the file contents
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %v", err)
+	}
+
+	return string(content), nil
+}
+
+// extractUserText creates a single string from all content blocks
 func extractUserText(blocks []contentBlock) string {
 	var parts []string
 	for _, b := range blocks {
-		if b.Type == "text" && strings.TrimSpace(b.Text) != "" {
-			parts = append(parts, b.Text)
+		switch b.Type {
+		case "text":
+			if strings.TrimSpace(b.Text) != "" {
+				parts = append(parts, b.Text)
+			}
+		case "resource_link":
+			// Build resource context information
+			resourceInfo := fmt.Sprintf("=== Resource: %s ===\n", b.Name)
+
+			// Add metadata
+			if b.Title != "" {
+				resourceInfo += fmt.Sprintf("Title: %s\n", b.Title)
+			}
+			if b.Description != "" {
+				resourceInfo += fmt.Sprintf("Description: %s\n", b.Description)
+			}
+			resourceInfo += fmt.Sprintf("URI: %s\n", b.URI)
+			if b.MimeType != "" {
+				resourceInfo += fmt.Sprintf("Type: %s\n", b.MimeType)
+			}
+			if b.Size != nil {
+				resourceInfo += fmt.Sprintf("Size: %d bytes\n", *b.Size)
+			}
+
+			// Try to read file contents if it's a file:// URI
+			if strings.HasPrefix(b.URI, "file://") {
+				content, err := readFileFromURI(b.URI)
+				if err != nil {
+					resourceInfo += fmt.Sprintf("\n[Error reading file: %v]\n", err)
+				} else {
+					// Limit content size for very large files
+					const maxContentSize = 50000 // 50KB limit for inline content
+					if len(content) > maxContentSize {
+						content = content[:maxContentSize] + "\n\n[... truncated to 50KB ...]"
+					}
+					resourceInfo += fmt.Sprintf("\n--- File Contents ---\n%s\n--- End of File ---\n", content)
+				}
+			} else {
+				resourceInfo += "\n[External resource - content not available]\n"
+			}
+
+			resourceInfo += "=== End Resource ===\n"
+			parts = append(parts, resourceInfo)
 		}
 	}
 	result := strings.Join(parts, "\n")
