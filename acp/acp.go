@@ -20,10 +20,12 @@ import (
 // It implements a minimal subset of ACP:
 // - initialize
 // - session/new
+// - session/load
 // - session/prompt (emits session/update notifications with agent_message_chunk, tool_call, and tool_result)
 // Notes:
 // - This implementation intentionally avoids writing anything to stdout except JSON-RPC messages.
 // - Any debug or informational logs should go to trace file if needed.
+// - Messages are newline-delimited JSON objects rather than using Content-Length framing.
 func Run(ctx context.Context, compellAgent *agent.Agent, in *bufio.Reader, out *bufio.Writer, traceFlag *bool) error {
 	var traceFile *os.File
 	trace := func(msg string) {} // Do nothing by default
@@ -105,6 +107,7 @@ func Run(ctx context.Context, compellAgent *agent.Agent, in *bufio.Reader, out *
 
 // ---- Minimal ACP handling types ----
 
+// jsonrpcRequest represents a JSON-RPC 2.0 request message
 type jsonrpcRequest struct {
 	JSONRPC string `json:"jsonrpc"`
 	ID      any    `json:"id,omitempty"`
@@ -112,6 +115,7 @@ type jsonrpcRequest struct {
 	Params  any    `json:"params,omitempty"`
 }
 
+// jsonrpcResponse represents a JSON-RPC 2.0 response message
 type jsonrpcResponse struct {
 	JSONRPC string          `json:"jsonrpc"`
 	ID      any             `json:"id,omitempty"`
@@ -119,6 +123,7 @@ type jsonrpcResponse struct {
 	Error   *jsonrpcError   `json:"error,omitempty"`
 }
 
+// jsonrpcError represents a JSON-RPC 2.0 error object
 type jsonrpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -127,6 +132,8 @@ type jsonrpcError struct {
 
 // ---- acpServer ----
 
+// acpServer represents the state of an ACP server instance
+// It manages sessions, handles requests, and communicates with the client over stdio
 type acpServer struct {
 	ctx          context.Context
 	agent        *agent.Agent
@@ -154,6 +161,8 @@ func (s *acpServer) readFramedMessage() ([]byte, error) {
 	return line, nil
 }
 
+// writeFramedJSON serializes and writes a JSON-RPC message to stdout
+// It handles the newline-delimited JSON formatting required by the ACP protocol
 func (s *acpServer) writeFramedJSON(obj any) error {
 	s.trace("writeFramedJSON: starting")
 	data, err := json.Marshal(obj)
@@ -184,6 +193,7 @@ func (s *acpServer) writeFramedJSON(obj any) error {
 	return nil
 }
 
+// writeResponseOK sends a successful JSON-RPC response with the given result
 func (s *acpServer) writeResponseOK(id any, result json.RawMessage) error {
 	s.trace("writeResponseOK: starting")
 	resp := jsonrpcResponse{
@@ -194,6 +204,7 @@ func (s *acpServer) writeResponseOK(id any, result json.RawMessage) error {
 	return s.writeFramedJSON(resp)
 }
 
+// writeResponseError sends a JSON-RPC error response with the specified error code and message
 func (s *acpServer) writeResponseError(id any, code int, msg string, data any) error {
 	s.trace(fmt.Sprintf("writeResponseError: code=%d, msg=%s, data=%+v", code, msg, data))
 	resp := jsonrpcResponse{
@@ -208,6 +219,7 @@ func (s *acpServer) writeResponseError(id any, code int, msg string, data any) e
 	return s.writeFramedJSON(resp)
 }
 
+// writeNotification sends a JSON-RPC notification (request without an ID)
 func (s *acpServer) writeNotification(method string, params any) error {
 	s.trace(fmt.Sprintf("writeNotification: method=%s, params=%+v", method, params))
 	// Notifications have no id
@@ -221,8 +233,13 @@ func (s *acpServer) writeNotification(method string, params any) error {
 
 // ---- Handlers ----
 
+// handleInitialize processes the initialize request from the ACP client
+// It returns the protocol version and agent capabilities including:
+// - Support for session loading
+// - Prompt capabilities (currently no support for audio, embedded context, or image)
 func (s *acpServer) handleInitialize(req *jsonrpcRequest) {
 	s.trace("handleInitialize: starting")
+	// initParams represents the parameters for the initialize request
 	type initParams struct {
 		ProtocolVersion int             `json:"protocolVersion"`
 		ClientCaps      json.RawMessage `json:"clientCapabilities,omitempty"`
@@ -261,9 +278,12 @@ func (s *acpServer) handleInitialize(req *jsonrpcRequest) {
 	_ = s.writeResponseOK(req.ID, rawResp)
 }
 
+// handleSessionNew creates a new session with a unique ID
+// It initializes the session with agent configuration metadata and stores it
+// Returns the session ID to the client
 func (s *acpServer) handleSessionNew(req *jsonrpcRequest) {
 	s.trace("handleSessionNew: starting")
-	// params: { cwd: string, mcpServers: [] }
+	// sessionNewParams represents the parameters for creating a new session
 	type sessionNewParams struct {
 		Cwd        string          `json:"cwd"`
 		McpServers json.RawMessage `json:"mcpServers"`
@@ -312,9 +332,16 @@ func (s *acpServer) handleSessionNew(req *jsonrpcRequest) {
 	_ = s.writeResponseOK(req.ID, rawResp)
 }
 
+// handleSessionLoad loads an existing session from disk and replays the conversation history
+// It sends session/update notifications to replay:
+// - user_message_chunk for user messages
+// - agent_message_chunk for assistant text responses
+// - tool_call for tool execution requests
+// - tool_result for tool execution results
+// Returns null when replay is complete
 func (s *acpServer) handleSessionLoad(req *jsonrpcRequest) {
 	s.trace("handleSessionLoad: starting")
-	// params: { sessionId: string, cwd: string, mcpServers: [] }
+	// sessionLoadParams represents the parameters for loading an existing session
 	type sessionLoadParams struct {
 		SessionID  string          `json:"sessionId"`
 		Cwd        string          `json:"cwd"`
@@ -409,9 +436,17 @@ type contentBlock struct {
 	// We ignore other fields for minimal MVP
 }
 
+// handleSessionPrompt processes a prompt request for a session
+// It handles the full LLM tool calling loop:
+// 1. Appends user message to session history
+// 2. Calls LLM with current history
+// 3. Streams agent responses via agent_message_chunk notifications
+// 4. Executes any tool calls and sends tool_call/tool_result notifications
+// 5. Continues loop until LLM indicates completion
+// 6. Saves session to disk and returns stopReason: end_turn
 func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 	s.trace("handleSessionPrompt: starting")
-	// params: { sessionId: string, prompt: []ContentBlock }
+	// promptParams represents the parameters for processing a prompt
 	type promptParams struct {
 		SessionID string         `json:"sessionId"`
 		Prompt    []contentBlock `json:"prompt"`
@@ -537,6 +572,7 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 }
 
 // executeToolCall executes a tool and returns its result
+// It searches for the requested tool in the agent's available tools and executes it with the provided arguments
 func (s *acpServer) executeToolCall(toolCall session.ToolCall) (string, error) {
 	s.trace(fmt.Sprintf("executeToolCall: looking for tool %s", toolCall.Name))
 
@@ -564,6 +600,7 @@ func (s *acpServer) executeToolCall(toolCall session.ToolCall) (string, error) {
 }
 
 // sendToolCallNotification emits a session/update notification for a tool call
+// This informs the client that the agent wants to execute a tool with specific arguments
 func (s *acpServer) sendToolCallNotification(sessionID string, toolCall session.ToolCall) error {
 	s.trace(fmt.Sprintf("sendToolCallNotification: session=%s, tool=%s", sessionID, toolCall.Name))
 	notification := map[string]any{
@@ -581,6 +618,7 @@ func (s *acpServer) sendToolCallNotification(sessionID string, toolCall session.
 }
 
 // sendToolResultNotification emits a session/update notification for a tool result
+// This informs the client of the result from executing a tool call
 func (s *acpServer) sendToolResultNotification(sessionID, toolCallID, result string) error {
 	s.trace(fmt.Sprintf("sendToolResultNotification: session=%s, toolCallID=%s", sessionID, toolCallID))
 	notification := map[string]any{
@@ -597,6 +635,7 @@ func (s *acpServer) sendToolResultNotification(sessionID, toolCallID, result str
 }
 
 // sendAgentMessageChunk emits a session/update notification with an agent message chunk.
+// This streams text content from the agent to the client as it's generated
 func (s *acpServer) sendAgentMessageChunk(sessionID, text string) error {
 	s.trace(fmt.Sprintf("sendAgentMessageChunk: session=%s, text=%s", sessionID, text))
 	notification := map[string]any{
@@ -612,6 +651,7 @@ func (s *acpServer) sendAgentMessageChunk(sessionID, text string) error {
 	return s.writeNotification("session/update", notification)
 }
 
+// nextSessionID generates a unique session ID using a timestamp and sequence number
 func (s *acpServer) nextSessionID() string {
 	s.sessionIDSeq++
 	id := fmt.Sprintf("sess_%d_%d", time.Now().UnixNano(), s.sessionIDSeq)
@@ -619,6 +659,8 @@ func (s *acpServer) nextSessionID() string {
 	return id
 }
 
+// extractUserText extracts and concatenates text content from content blocks
+// It filters out non-text blocks and trims whitespace from each text block
 func extractUserText(blocks []contentBlock) string {
 	var parts []string
 	for _, b := range blocks {
