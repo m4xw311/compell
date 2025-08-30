@@ -42,3 +42,4 @@
     - In ui it said initializing, in logs it seemed like the agent was waiting for some input from Zed which was not coming through
     - The issue was how the JSON RPC response was being writtent to stdout. It was missing a newline in the end which caused Zed to expect more data and wait for it indefinitely. Compell on the other hand was waiting for Zed to send a message which did not come as Zed was waiting.
     - It does not seem to me that this one would have been found by any coding assistant with any tools today. There is no error to work from. Just two programs waiting on each other.
+- ACP implementation was missing tool calling. Had to look into trace to identify the issue. It was fixed by Claude Opus 4.1

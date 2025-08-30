@@ -8,3 +8,6 @@
     3.4 [ ] Implement alternatives in different branches and proceed based on how they perform
 0. [ ] Mechanism for review feedback to the agent
     0.1 [ ] Perhaps a hook (auto executed workflow) to automatically update the TODO.md using review comments in the source code files.
+
+Publish in brew
+https://learnfastmakethings.com/p/create-a-custom-cli-tool-and-distribute-with-homebrew-using-goreleaser-and-github-actions-4c92cdeb9dfb
