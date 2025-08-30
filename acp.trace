@@ -1,0 +1,78 @@
+[10:56:27.840] Run: starting ACP server
+[10:56:27.840] Run: entering read loop
+[10:56:27.840] readFramedMessage: starting
+[10:56:27.840] readFramedMessage: successfully read direct JSON message of length 132: {"id":0,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":true,"writeTextFile":true}}}}
+[10:56:27.840] Run: received payload: {"id":0,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":true,"writeTextFile":true}}}}
+[10:56:27.840] Run: dispatching method: initialize with ID: 0
+[10:56:27.840] Run: calling handleInitialize
+[10:56:27.840] handleInitialize: starting
+[10:56:27.840] handleInitialize: sending response: {"agentCapabilities":{"loadSession":true,"promptCapabilities":{"audio":false,"embeddedContext":false,"image":false}},"authMethods":[],"protocolVersion":1}
+[10:56:27.840] writeResponseOK: starting
+[10:56:27.840] writeFramedJSON: starting
+[10:56:27.840] writeFramedJSON: {"jsonrpc":"2.0","id":0,"result":{"agentCapabilities":{"loadSession":true,"promptCapabilities":{"audio":false,"embeddedContext":false,"image":false}},"authMethods":[],"protocolVersion":1}}
+[10:56:27.840] writeFramedJSON: successfully wrote message
+[10:56:27.840] Run: entering read loop
+[10:56:27.840] readFramedMessage: starting
+[10:56:27.843] readFramedMessage: successfully read direct JSON message of length 97: {"id":1,"method":"session/new","params":{"mcpServers":[],"cwd":"/Users/max/experiments/compell"}}
+[10:56:27.843] Run: received payload: {"id":1,"method":"session/new","params":{"mcpServers":[],"cwd":"/Users/max/experiments/compell"}}
+[10:56:27.843] Run: dispatching method: session/new with ID: 1
+[10:56:27.843] Run: calling handleSessionNew
+[10:56:27.843] handleSessionNew: starting
+[10:56:27.843] nextSessionID: generated sess_1756569387843286000_1
+[10:56:27.843] handleSessionNew: created session ID: sess_1756569387843286000_1
+[10:56:27.843] handleSessionNew: sending response: {"sessionId":"sess_1756569387843286000_1"}
+[10:56:27.843] writeResponseOK: starting
+[10:56:27.843] writeFramedJSON: starting
+[10:56:27.843] writeFramedJSON: {"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess_1756569387843286000_1"}}
+[10:56:27.843] writeFramedJSON: successfully wrote message
+[10:56:27.843] Run: entering read loop
+[10:56:27.843] readFramedMessage: starting
+[10:56:31.186] readFramedMessage: successfully read direct JSON message of length 128: {"id":2,"method":"session/prompt","params":{"sessionId":"sess_1756569387843286000_1","prompt":[{"type":"text","text":"Hello"}]}}
+[10:56:31.186] Run: received payload: {"id":2,"method":"session/prompt","params":{"sessionId":"sess_1756569387843286000_1","prompt":[{"type":"text","text":"Hello"}]}}
+[10:56:31.186] Run: dispatching method: session/prompt with ID: 2
+[10:56:31.186] Run: calling handleSessionPrompt
+[10:56:31.186] handleSessionPrompt: starting
+[10:56:31.186] handleSessionPrompt: looking up session: sess_1756569387843286000_1
+[10:56:31.186] handleSessionPrompt: extracting user text from prompt: [{Type:text Text:Hello}]
+[10:56:31.186] handleSessionPrompt: extracted user text: Hello
+[10:56:31.186] handleSessionPrompt: appending user message
+[10:56:31.186] handleSessionPrompt: processing user input with agent
+[10:56:32.389] handleSessionPrompt: sending agent message chunk with content: Hello! How can I assist you today?
+[10:56:32.389] sendAgentMessageChunk: session=sess_1756569387843286000_1, text=Hello! How can I assist you today?
+[10:56:32.389] writeNotification: method=session/update, params=map[sessionId:sess_1756569387843286000_1 update:map[content:map[text:Hello! How can I assist you today? type:text] sessionUpdate:agent_message_chunk]]
+[10:56:32.389] writeFramedJSON: starting
+[10:56:32.389] writeFramedJSON: {"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"sess_1756569387843286000_1","update":{"content":{"text":"Hello! How can I assist you today?","type":"text"},"sessionUpdate":"agent_message_chunk"}}}
+[10:56:32.390] writeFramedJSON: successfully wrote message
+[10:56:32.392] handleSessionPrompt: sending response: {"stopReason":"end_turn"}
+[10:56:32.392] writeResponseOK: starting
+[10:56:32.392] writeFramedJSON: starting
+[10:56:32.392] writeFramedJSON: {"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}
+[10:56:32.392] writeFramedJSON: successfully wrote message
+[10:56:32.392] Run: entering read loop
+[10:56:32.392] readFramedMessage: starting
+[10:57:17.618] readFramedMessage: successfully read direct JSON message of length 257: {"id":3,"method":"session/prompt","params":{"sessionId":"sess_1756569387843286000_1","prompt":[{"type":"text","text":"What is there in "},{"type":"resource_link","name":"web","uri":"file:///Users/max/experiments/compell/web/"},{"type":"text","text":" ?"}]}}
+[10:57:17.618] Run: received payload: {"id":3,"method":"session/prompt","params":{"sessionId":"sess_1756569387843286000_1","prompt":[{"type":"text","text":"What is there in "},{"type":"resource_link","name":"web","uri":"file:///Users/max/experiments/compell/web/"},{"type":"text","text":" ?"}]}}
+[10:57:17.618] Run: dispatching method: session/prompt with ID: 3
+[10:57:17.618] Run: calling handleSessionPrompt
+[10:57:17.618] handleSessionPrompt: starting
+[10:57:17.618] handleSessionPrompt: looking up session: sess_1756569387843286000_1
+[10:57:17.618] handleSessionPrompt: extracting user text from prompt: [{Type:text Text:What is there in } {Type:resource_link Text:} {Type:text Text: ?}]
+[10:57:17.618] handleSessionPrompt: extracted user text: What is there in 
+ ?
+[10:57:17.618] handleSessionPrompt: appending user message
+[10:57:17.618] handleSessionPrompt: processing user input with agent
+[10:57:18.197] handleSessionPrompt: sending agent message chunk with content: May I know which directory or path you are referring to? Please provide more details so I can help you better.
+[10:57:18.198] sendAgentMessageChunk: session=sess_1756569387843286000_1, text=May I know which directory or path you are referring to? Please provide more details so I can help you better.
+[10:57:18.198] writeNotification: method=session/update, params=map[sessionId:sess_1756569387843286000_1 update:map[content:map[text:May I know which directory or path you are referring to? Please provide more details so I can help you better. type:text] sessionUpdate:agent_message_chunk]]
+[10:57:18.198] writeFramedJSON: starting
+[10:57:18.198] writeFramedJSON: {"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"sess_1756569387843286000_1","update":{"content":{"text":"May I know which directory or path you are referring to? Please provide more details so I can help you better.","type":"text"},"sessionUpdate":"agent_message_chunk"}}}
+[10:57:18.198] writeFramedJSON: successfully wrote message
+[10:57:18.198] handleSessionPrompt: sending response: {"stopReason":"end_turn"}
+[10:57:18.198] writeResponseOK: starting
+[10:57:18.198] writeFramedJSON: starting
+[10:57:18.198] writeFramedJSON: {"jsonrpc":"2.0","id":3,"result":{"stopReason":"end_turn"}}
+[10:57:18.198] writeFramedJSON: successfully wrote message
+[10:57:18.198] Run: entering read loop
+[10:57:18.198] readFramedMessage: starting
+[11:05:28.895] readFramedMessage: error reading message: EOF
+[11:05:28.895] Run: EOF received, exiting

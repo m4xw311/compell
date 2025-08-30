@@ -13,7 +13,6 @@ import (
 
 	"github.com/m4xw311/compell/agent"
 	"github.com/m4xw311/compell/session"
-	"github.com/m4xw311/compell/tools"
 )
 
 // Run starts the Agent Client Protocol server over stdio using JSON-RPC
@@ -487,75 +486,37 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 	userMsg := session.Message{Role: "user", Content: userText}
 	sess.AddMessage(userMsg)
 
-	// Main loop: LLM -> Tool -> LLM ... (similar to agent.go's processTurn)
-	for {
-		// Call LLM client with current history and available tools
-		s.trace("handleSessionPrompt: calling LLM client with messages")
-		reply, err := s.agent.LLMClient.Chat(s.ctx, sess.Messages, s.agent.AvailableTools)
-		if err != nil {
-			s.trace(fmt.Sprintf("handleSessionPrompt: LLM chat failed: %v", err))
-			_ = s.writeResponseError(req.ID, -32603, "Internal error", fmt.Sprintf("LLM chat failed: %v", err))
-			return
-		}
-		s.trace(fmt.Sprintf("handleSessionPrompt: LLM client response: %+v", reply))
-
-		// Update history with assistant's response
-		s.trace("handleSessionPrompt: updating history with assistant response")
-		sess.AddMessage(*reply)
-
-		// Stream agent message if there's content
-		if strings.TrimSpace(reply.Content) != "" {
-			s.trace(fmt.Sprintf("handleSessionPrompt: sending agent message chunk with content: %s", reply.Content))
-			_ = s.sendAgentMessageChunk(p.SessionID, reply.Content)
-		}
-
-		// Check if there are tool calls to execute
-		if len(reply.ToolCalls) == 0 {
-			s.trace("handleSessionPrompt: no tool calls, ending turn")
-			// No tool calls, we're done - save session to disk and exit loop
-			if err := sess.Save(); err != nil {
-				s.trace(fmt.Sprintf("handleSessionPrompt: warning - failed to save session: %v", err))
-			}
-			break
-		}
-
-		// Execute tool calls
-		s.trace(fmt.Sprintf("handleSessionPrompt: executing %d tool calls", len(reply.ToolCalls)))
-
-		for _, toolCall := range reply.ToolCalls {
+	// Create callbacks for ACP-specific behavior
+	callbacks := agent.ProcessCallbacks{
+		OnAssistantMessage: func(message string) {
+			s.trace(fmt.Sprintf("handleSessionPrompt: sending agent message chunk with content: %s", message))
+			_ = s.sendAgentMessageChunk(p.SessionID, message)
+		},
+		OnToolCall: func(toolCall session.ToolCall) {
 			s.trace(fmt.Sprintf("handleSessionPrompt: executing tool call: %s with args: %v", toolCall.Name, toolCall.Args))
-
 			// Send tool_call notification
 			_ = s.sendToolCallNotification(p.SessionID, toolCall)
-
-			// Execute the tool
-			toolResult, err := s.executeToolCall(toolCall)
-			if err != nil {
-				s.trace(fmt.Sprintf("handleSessionPrompt: tool execution error for %s: %v", toolCall.Name, err))
-				toolResult = fmt.Sprintf("Error executing tool %s: %v", toolCall.Name, err)
-			}
-
+		},
+		OnToolResult: func(toolCall session.ToolCall, result string) {
 			// Send tool_result notification
-			_ = s.sendToolResultNotification(p.SessionID, toolCall.ToolCallID, toolResult)
+			_ = s.sendToolResultNotification(p.SessionID, toolCall.ToolCallID, result)
+		},
+		ShouldExecuteTool: func(toolCall session.ToolCall) bool {
+			// In ACP mode, always execute tools (no user prompt needed)
+			return true
+		},
+		OnWarning: func(warning string) {
+			s.trace(fmt.Sprintf("handleSessionPrompt: warning - %s", warning))
+		},
+	}
 
-			// Add tool result to messages
-			toolMsg := session.Message{
-				Role:    "tool",
-				Content: toolResult,
-				ToolCalls: []session.ToolCall{
-					{ToolCallID: toolCall.ToolCallID, Name: toolCall.Name},
-				},
-			}
-			sess.AddMessage(toolMsg)
-		}
-
-		// Save session after tool execution completes
-		if err := sess.Save(); err != nil {
-			s.trace(fmt.Sprintf("handleSessionPrompt: warning - failed to save session after tools: %v", err))
-		}
-
-		// Continue loop to send tool results back to LLM
-		s.trace("handleSessionPrompt: continuing loop after tool execution")
+	// Process the user input using the agent
+	s.trace("handleSessionPrompt: processing user input with agent")
+	s.agent.Session = sess // Update agent's session to use the ACP session
+	if err := s.agent.ProcessUserInput(s.ctx, userText, callbacks); err != nil {
+		s.trace(fmt.Sprintf("handleSessionPrompt: error processing user input: %v", err))
+		_ = s.writeResponseError(req.ID, -32603, "Internal error", fmt.Sprintf("error processing user input: %v", err))
+		return
 	}
 
 	// Respond with stopReason: end_turn
@@ -569,34 +530,6 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 	rawResp := json.RawMessage(respBytes)
 	s.trace(fmt.Sprintf("handleSessionPrompt: sending response: %s", string(respBytes)))
 	_ = s.writeResponseOK(req.ID, rawResp)
-}
-
-// executeToolCall executes a tool and returns its result
-// It searches for the requested tool in the agent's available tools and executes it with the provided arguments
-func (s *acpServer) executeToolCall(toolCall session.ToolCall) (string, error) {
-	s.trace(fmt.Sprintf("executeToolCall: looking for tool %s", toolCall.Name))
-
-	var targetTool tools.Tool
-	for _, t := range s.agent.AvailableTools {
-		if t.Name() == toolCall.Name {
-			targetTool = t
-			break
-		}
-	}
-
-	if targetTool == nil {
-		return "", fmt.Errorf("tool '%s' not found in the available toolset", toolCall.Name)
-	}
-
-	s.trace(fmt.Sprintf("executeToolCall: executing tool %s with args: %v", toolCall.Name, toolCall.Args))
-
-	// Execute the tool
-	result, err := targetTool.Execute(s.ctx, toolCall.Args)
-	if err != nil {
-		return "", err
-	}
-
-	return result, nil
 }
 
 // sendToolCallNotification emits a session/update notification for a tool call

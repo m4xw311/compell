@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/m4xw311/compell/acp"
 	"github.com/m4xw311/compell/agent"
+	"github.com/m4xw311/compell/agent/acp"
+	"github.com/m4xw311/compell/agent/terminal"
 	"github.com/m4xw311/compell/config"
 	"github.com/m4xw311/compell/llm"
 	"github.com/m4xw311/compell/session"
@@ -171,7 +172,8 @@ func main() {
 
 		// Run the agent in regular CLI mode
 		fmt.Println("Compell is ready. Type your prompt.")
-		if err := compellAgent.Run(context.Background(), initialPrompt); err != nil {
+		term := terminal.New(compellAgent)
+		if err := term.Run(context.Background(), initialPrompt); err != nil {
 			fmt.Fprintf(os.Stderr, "Agent stopped with an error: %+v\n", err)
 			os.Exit(1)
 		}
