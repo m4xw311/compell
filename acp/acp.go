@@ -24,7 +24,7 @@ import (
 // Notes:
 // - This implementation intentionally avoids writing anything to stdout except JSON-RPC messages.
 // - Any debug or informational logs should go to trace file if needed.
-func Run(ctx context.Context, compellAgent *agent.Agent, traceFlag *bool) error {
+func Run(ctx context.Context, compellAgent *agent.Agent, in *bufio.Reader, out *bufio.Writer, traceFlag *bool) error {
 	var traceFile *os.File
 	trace := func(msg string) {} // Do nothing by default
 	if *traceFlag == true {
@@ -42,10 +42,10 @@ func Run(ctx context.Context, compellAgent *agent.Agent, traceFlag *bool) error 
 	server := &acpServer{
 		ctx:          ctx,
 		agent:        compellAgent,
-		sessions:     make(map[string][]session.Message),
+		sessions:     make(map[string]*session.Session),
 		sessionIDSeq: 0,
-		stdinReader:  bufio.NewReader(os.Stdin),
-		stdoutWriter: bufio.NewWriter(os.Stdout),
+		StdinReader:  in,
+		StdoutWriter: out,
 		writeLock:    &sync.Mutex{},
 		trace:        trace,
 	}
@@ -89,6 +89,9 @@ func Run(ctx context.Context, compellAgent *agent.Agent, traceFlag *bool) error 
 		case "session/new":
 			trace("Run: calling handleSessionNew")
 			server.handleSessionNew(&req)
+		case "session/load":
+			trace("Run: calling handleSessionLoad")
+			server.handleSessionLoad(&req)
 		case "session/prompt":
 			trace("Run: calling handleSessionPrompt")
 			server.handleSessionPrompt(&req)
@@ -127,12 +130,12 @@ type jsonrpcError struct {
 type acpServer struct {
 	ctx          context.Context
 	agent        *agent.Agent
-	sessions     map[string][]session.Message
+	sessions     map[string]*session.Session
 	sessionsLock sync.Mutex
 	sessionIDSeq int64
 
-	stdinReader  *bufio.Reader
-	stdoutWriter *bufio.Writer
+	StdinReader  *bufio.Reader
+	StdoutWriter *bufio.Writer
 	writeLock    *sync.Mutex
 	trace        func(string)
 }
@@ -141,7 +144,7 @@ type acpServer struct {
 func (s *acpServer) readFramedMessage() ([]byte, error) {
 	s.trace("readFramedMessage: starting")
 	// JSON-RPC requests and responses are newline-delimited JSONs.
-	line, _, err := s.stdinReader.ReadLine()
+	line, _, err := s.StdinReader.ReadLine()
 	if err != nil {
 		s.trace(fmt.Sprintf("readFramedMessage: error reading message: %v", err))
 		return nil, err
@@ -162,17 +165,17 @@ func (s *acpServer) writeFramedJSON(obj any) error {
 
 	s.writeLock.Lock()
 	defer s.writeLock.Unlock()
-	if _, err := s.stdoutWriter.Write(data); err != nil {
+	if _, err := s.StdoutWriter.Write(data); err != nil {
 		s.trace(fmt.Sprintf("writeFramedJSON: write error: %v", err))
 		return err
 	}
 	// JSON-RPC requests and responses are newline-delimited JSONs.
 	// Write newline to stdout to inform client that message is complete
-	if _, err := s.stdoutWriter.WriteString("\n"); err != nil {
+	if _, err := s.StdoutWriter.WriteString("\n"); err != nil {
 		s.trace(fmt.Sprintf("writeFramedJSON: write error: %v", err))
 		return err
 	}
-	err = s.stdoutWriter.Flush()
+	err = s.StdoutWriter.Flush()
 	if err != nil {
 		s.trace(fmt.Sprintf("writeFramedJSON: flush error: %v", err))
 		return err
@@ -239,7 +242,7 @@ func (s *acpServer) handleInitialize(req *jsonrpcRequest) {
 	resp := map[string]any{
 		"protocolVersion": 1,
 		"agentCapabilities": map[string]any{
-			"loadSession": false, // TODO: Implement session loading in agent
+			"loadSession": true,
 			"promptCapabilities": map[string]bool{
 				"audio":           false,
 				"embeddedContext": false,
@@ -275,12 +278,26 @@ func (s *acpServer) handleSessionNew(req *jsonrpcRequest) {
 		s.trace(fmt.Sprintf("handleInitialize: err : %v", err))
 	}
 
-	// Create a new session ID and in-memory history
+	// Create a new session ID and session object
 	sid := s.nextSessionID()
 	s.trace(fmt.Sprintf("handleSessionNew: created session ID: %s", sid))
 
+	// Create a new session with the session ID as its name
+	sess, err := session.New(sid)
+	if err != nil {
+		s.trace(fmt.Sprintf("handleSessionNew: failed to create session: %v", err))
+		_ = s.writeResponseError(req.ID, -32603, "Internal error", fmt.Sprintf("failed to create session: %v", err))
+		return
+	}
+
+	// Store session metadata from the agent configuration
+	sess.Mode = string(s.agent.Session.Mode)
+	sess.Toolset = s.agent.Session.Toolset
+	sess.ToolVerbosity = string(s.agent.Session.ToolVerbosity)
+	sess.Acp = s.agent.Session.Acp
+
 	s.sessionsLock.Lock()
-	s.sessions[sid] = []session.Message{}
+	s.sessions[sid] = sess
 	s.sessionsLock.Unlock()
 
 	resp := map[string]any{
@@ -293,6 +310,95 @@ func (s *acpServer) handleSessionNew(req *jsonrpcRequest) {
 	rawResp := json.RawMessage(respBytes)
 	s.trace(fmt.Sprintf("handleSessionNew: sending response: %s", string(respBytes)))
 	_ = s.writeResponseOK(req.ID, rawResp)
+}
+
+func (s *acpServer) handleSessionLoad(req *jsonrpcRequest) {
+	s.trace("handleSessionLoad: starting")
+	// params: { sessionId: string, cwd: string, mcpServers: [] }
+	type sessionLoadParams struct {
+		SessionID  string          `json:"sessionId"`
+		Cwd        string          `json:"cwd"`
+		McpServers json.RawMessage `json:"mcpServers"`
+	}
+	var p sessionLoadParams
+	b, err := json.Marshal(req.Params)
+	if err != nil {
+		s.trace(fmt.Sprintf("handleSessionLoad: marshal error: %v", err))
+		_ = s.writeResponseError(req.ID, -32603, "Internal error", fmt.Sprintf("marshal error: %v", err))
+		return
+	}
+	err = json.Unmarshal(b, &p)
+	if err != nil {
+		s.trace(fmt.Sprintf("handleSessionLoad: unmarshal error: %v", err))
+		_ = s.writeResponseError(req.ID, -32603, "Internal error", fmt.Sprintf("unmarshal error: %v", err))
+		return
+	}
+
+	// Load the session from disk
+	s.trace(fmt.Sprintf("handleSessionLoad: loading session: %s", p.SessionID))
+	sess, err := session.Load(p.SessionID)
+	if err != nil {
+		s.trace(fmt.Sprintf("handleSessionLoad: failed to load session: %v", err))
+		_ = s.writeResponseError(req.ID, -32602, "Invalid params", fmt.Sprintf("session not found: %v", err))
+		return
+	}
+
+	// Store the loaded session in memory
+	s.sessionsLock.Lock()
+	s.sessions[p.SessionID] = sess
+	s.sessionsLock.Unlock()
+
+	// Replay the conversation history to the client
+	s.trace(fmt.Sprintf("handleSessionLoad: replaying %d messages", len(sess.Messages)))
+	for _, msg := range sess.Messages {
+		switch msg.Role {
+		case "user":
+			// Send user message chunk notification
+			s.trace(fmt.Sprintf("handleSessionLoad: replaying user message: %s", msg.Content))
+			_ = s.writeNotification("session/update", map[string]any{
+				"sessionId": p.SessionID,
+				"update": map[string]any{
+					"sessionUpdate": "user_message_chunk",
+					"content": map[string]any{
+						"type": "text",
+						"text": msg.Content,
+					},
+				},
+			})
+		case "assistant":
+			// Send agent message chunk notification
+			if msg.Content != "" {
+				s.trace(fmt.Sprintf("handleSessionLoad: replaying assistant message: %s", msg.Content))
+				_ = s.writeNotification("session/update", map[string]any{
+					"sessionId": p.SessionID,
+					"update": map[string]any{
+						"sessionUpdate": "agent_message_chunk",
+						"content": map[string]any{
+							"type": "text",
+							"text": msg.Content,
+						},
+					},
+				})
+			}
+			// Also replay tool calls if any
+			for _, tc := range msg.ToolCalls {
+				s.trace(fmt.Sprintf("handleSessionLoad: replaying tool call: %s", tc.Name))
+				_ = s.sendToolCallNotification(p.SessionID, tc)
+			}
+		case "tool":
+			// Tool results are part of the conversation but typically not shown directly
+			// They're associated with the previous tool call
+			s.trace("handleSessionLoad: replaying tool result")
+			// Find the tool call ID from the message
+			if len(msg.ToolCalls) > 0 {
+				_ = s.sendToolResultNotification(p.SessionID, msg.ToolCalls[0].ToolCallID, msg.Content)
+			}
+		}
+	}
+
+	// Send response indicating load is complete
+	s.trace("handleSessionLoad: sending response")
+	_ = s.writeResponseOK(req.ID, json.RawMessage("null"))
 }
 
 // contentBlock represents a content block in ACP prompt requests.
@@ -328,7 +434,7 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 	// Find session
 	s.trace(fmt.Sprintf("handleSessionPrompt: looking up session: %s", p.SessionID))
 	s.sessionsLock.Lock()
-	msgs, ok := s.sessions[p.SessionID]
+	sess, ok := s.sessions[p.SessionID]
 	s.sessionsLock.Unlock()
 	if !ok {
 		s.trace("handleSessionPrompt: unknown sessionId")
@@ -344,13 +450,13 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 	// Append user message
 	s.trace("handleSessionPrompt: appending user message")
 	userMsg := session.Message{Role: "user", Content: userText}
-	msgs = append(msgs, userMsg)
+	sess.AddMessage(userMsg)
 
 	// Main loop: LLM -> Tool -> LLM ... (similar to agent.go's processTurn)
 	for {
 		// Call LLM client with current history and available tools
 		s.trace("handleSessionPrompt: calling LLM client with messages")
-		reply, err := s.agent.LLMClient.Chat(s.ctx, msgs, s.agent.AvailableTools)
+		reply, err := s.agent.LLMClient.Chat(s.ctx, sess.Messages, s.agent.AvailableTools)
 		if err != nil {
 			s.trace(fmt.Sprintf("handleSessionPrompt: LLM chat failed: %v", err))
 			_ = s.writeResponseError(req.ID, -32603, "Internal error", fmt.Sprintf("LLM chat failed: %v", err))
@@ -360,7 +466,7 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 
 		// Update history with assistant's response
 		s.trace("handleSessionPrompt: updating history with assistant response")
-		msgs = append(msgs, *reply)
+		sess.AddMessage(*reply)
 
 		// Stream agent message if there's content
 		if strings.TrimSpace(reply.Content) != "" {
@@ -371,10 +477,10 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 		// Check if there are tool calls to execute
 		if len(reply.ToolCalls) == 0 {
 			s.trace("handleSessionPrompt: no tool calls, ending turn")
-			// No tool calls, we're done - save session and exit loop
-			s.sessionsLock.Lock()
-			s.sessions[p.SessionID] = msgs
-			s.sessionsLock.Unlock()
+			// No tool calls, we're done - save session to disk and exit loop
+			if err := sess.Save(); err != nil {
+				s.trace(fmt.Sprintf("handleSessionPrompt: warning - failed to save session: %v", err))
+			}
 			break
 		}
 
@@ -405,7 +511,12 @@ func (s *acpServer) handleSessionPrompt(req *jsonrpcRequest) {
 					{ToolCallID: toolCall.ToolCallID, Name: toolCall.Name},
 				},
 			}
-			msgs = append(msgs, toolMsg)
+			sess.AddMessage(toolMsg)
+		}
+
+		// Save session after tool execution completes
+		if err := sess.Save(); err != nil {
+			s.trace(fmt.Sprintf("handleSessionPrompt: warning - failed to save session after tools: %v", err))
 		}
 
 		// Continue loop to send tool results back to LLM

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -73,6 +74,9 @@ func main() {
 	if *modeFlag == "" {
 		*modeFlag = "prompt"
 	}
+	if *toolsetFlag == "" {
+		*toolsetFlag = "default"
+	}
 	if *toolVerbosityFlag == "" {
 		*toolVerbosityFlag = "none"
 	}
@@ -81,6 +85,7 @@ func main() {
 	sess.Mode = *modeFlag
 	sess.Toolset = *toolsetFlag
 	sess.ToolVerbosity = *toolVerbosityFlag
+	sess.Acp = *acpFlag == true
 	if err := sess.Save(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error saving session '%s': %+v\n", sessionName, err)
 		os.Exit(1)
@@ -154,7 +159,9 @@ func main() {
 	if *acpFlag {
 		// Run in ACP mode
 		fmt.Fprintln(os.Stdout, "Starting Compell in ACP mode...")
-		if err := acp.Run(context.Background(), compellAgent, traceFlag); err != nil {
+		in := bufio.NewReader(os.Stdin)
+		out := bufio.NewWriter(os.Stdout)
+		if err := acp.Run(context.Background(), compellAgent, in, out, traceFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "ACP mode failed: %+v\n", err)
 			os.Exit(1)
 		}

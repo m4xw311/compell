@@ -28,6 +28,7 @@ type Session struct {
 	Mode          string    `json:"mode"`           // New field to store mode
 	Toolset       string    `json:"toolset"`        // New field to store toolset
 	ToolVerbosity string    `json:"tool_verbosity"` // New field to store tool verbosity
+	Acp           bool      `json:"acp"`
 	path          string
 }
 
